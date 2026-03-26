@@ -3,17 +3,21 @@ import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:sobes/core/theme/app_theme.dart';
 import 'package:sobes/features/home/widgets/history_drawer.dart';
-import 'package:sobes/features/interview/presentation/pages/setup_page.dart';
 import 'package:sobes/features/profile/presentation/pages/profile_page.dart';
 import 'package:sobes/features/profile/presentation/providers/profile_provider.dart';
+import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
+import 'package:sobes/features/interview/presentation/pages/chat_page.dart';
+
+// 👇 ДОБАВИЛИ ИМПОРТ НОВОГО ЭКРАНА ВЫБОРА 👇
+import 'package:sobes/features/interview/presentation/pages/mode_selection_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 👇 Берем данные профиля для аватарки 👇
     final profileData = context.watch<ProfileProvider>();
+    final interviewProvider = context.watch<InterviewProvider>();
     final String currentName = profileData.userName;
     final String initials = currentName.trim().isNotEmpty 
         ? currentName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join()
@@ -48,7 +52,7 @@ class HomePage extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    initials, // 👈 ТЕПЕРЬ ТУТ РЕАЛЬНЫЕ ИНИЦИАЛЫ
+                    initials, 
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
@@ -99,11 +103,39 @@ class HomePage extends StatelessWidget {
 
               const Gap(48),
 
+              // КНОПКА ВОССТАНОВЛЕНИЯ ЧЕРНОВИКА
+              if (interviewProvider.hasDraft) ...[
+                SizedBox(
+                  width: 220, height: 56,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await interviewProvider.loadDraft();
+                      if (context.mounted) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: interviewProvider.config?.role ?? "")));
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2C2C2E), foregroundColor: Colors.white,
+                      shape: const StadiumBorder(), elevation: 5,
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.restore, size: 20), Gap(8),
+                        Text("Продолжить чат", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+                const Gap(16),
+              ],
+
               SizedBox(
                 width: 220, height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SetupPage()));
+                     // 👇 ТЕПЕРЬ КНОПКА ВЕДЕТ НА ЭКРАН ВЫБОРА РЕЖИМА 👇
+                     Navigator.push(context, MaterialPageRoute(builder: (_) => const ModeSelectionPage()));
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white, foregroundColor: Colors.black,

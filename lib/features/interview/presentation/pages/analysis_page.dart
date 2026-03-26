@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/interview_provider.dart';
 import 'package:sobes/features/history/presentation/providers/history_provider.dart';
 import 'package:sobes/features/history/domain/entities/session_history.dart';
+import 'package:sobes/features/interview/presentation/pages/transcript_page.dart';
 
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({super.key});
@@ -20,22 +21,29 @@ class _AnalysisPageState extends State<AnalysisPage> {
     });
   }
 
-  // --- УМНЫЙ ЗАПУСК С АВТОСОХРАНЕНИЕМ ---
   void _startAnalysis() {
-    context.read<InterviewProvider>().generateAnalysis(
+    final provider = context.read<InterviewProvider>();
+    
+    if (provider.analysisResult != null && provider.analysisResult!.performanceText != "Ошибка анализа") {
+      return; 
+    }
+
+    provider.generateAnalysis(
       onSuccess: () {
-        final provider = context.read<InterviewProvider>();
-        
-        // Как только JSON получен - тихо сохраняем в базу!
-        final newHistory = SessionHistory(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          role: provider.config?.role ?? "Собеседование",
-          persona: provider.config?.persona ?? "AI",
-          score: provider.analysisResult?.score ?? 0.0,
-          date: DateTime.now(),
-        );
-        
-        context.read<HistoryProvider>().saveSession(newHistory);
+        // 👇 ИСПРАВЛЕННОЕ СОХРАНЕНИЕ В ИСТОРИЮ 👇
+        if (provider.config != null) {
+          final newHistory = SessionHistory(
+            id: provider.config.hashCode.toString() + provider.messages.length.toString(),
+            date: DateTime.now(),
+            config: provider.config!,
+            messages: provider.messages,
+            isFinished: provider.isFinished,
+            isFailed: provider.isFailed,
+            analysisResult: provider.analysisResult,
+          );
+          
+          context.read<HistoryProvider>().saveSession(newHistory);
+        }
       }
     );
   }
@@ -76,12 +84,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                 children: [
                                   const Icon(Icons.error_outline, color: Colors.redAccent, size: 60),
                                   const SizedBox(height: 16),
-                                  const Text("Сервер перегружен (503)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const Text("Ошибка связи с сервером", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
                                   const Text("Не удалось сгенерировать итоги.", style: TextStyle(color: Colors.white54, fontSize: 14)),
                                   const SizedBox(height: 32),
                                   ElevatedButton.icon(
-                                    // 👇 ТЕПЕРЬ ПРИ ПОВТОРЕ ТОЖЕ БУДЕТ АВТОСОХРАНЕНИЕ 👇
                                     onPressed: _startAnalysis, 
                                     icon: const Icon(Icons.refresh, color: Colors.black),
                                     label: const Text("Повторить попытку", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
@@ -109,12 +116,60 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                   _buildListCard("Areas to Improve", Icons.cancel, Colors.redAccent, const Color(0xFF2E1C1C), result.weaknesses),
                                   const SizedBox(height: 24),
 
+                                  if (result.smartRecap.isNotEmpty) ...[
+                                    const Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text("📚 Работа над ошибками", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    ...result.smartRecap.map((recap) => Container(
+                                      margin: const EdgeInsets.only(bottom: 16),
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF121212),
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.lightbulb_outline, color: Colors.blueAccent, size: 24),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: Text(recap.topic, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(recap.explanation, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.4)),
+                                          const SizedBox(height: 16),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                            child: Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Icon(Icons.menu_book, color: Colors.blueAccent, size: 20),
+                                                const SizedBox(width: 12),
+                                                Expanded(child: Text("Что почитать: ${recap.recommendation}", style: const TextStyle(color: Colors.blueAccent, fontSize: 14, fontWeight: FontWeight.w600, height: 1.4))),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )),
+                                    const SizedBox(height: 24),
+                                  ],
+
                                   SizedBox(
                                     width: double.infinity,
                                     height: 56,
                                     child: ElevatedButton.icon(
                                       onPressed: () {
-                                        Navigator.pop(context); 
+                                        Navigator.push(
+                                          context, 
+                                          MaterialPageRoute(builder: (_) => const TranscriptPage())
+                                        );
                                       },
                                       icon: const Icon(Icons.description, color: Colors.white),
                                       label: const Text("Смотреть весь чат", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),

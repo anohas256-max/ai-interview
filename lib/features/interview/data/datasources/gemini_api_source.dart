@@ -1,5 +1,4 @@
-
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:dio/dio.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/session_config.dart';
 import '../../../../core/config/app_config.dart';
@@ -14,26 +13,8 @@ class AiResponseData {
 }
 
 class GeminiApiSource {
-final String _apiKey = AppConfig.geminiApiKey;
-  
-  double _calculateCost(String modelName, int inputTokens, int outputTokens) {
-    double inputPrice = 0.0;
-    double outputPrice = 0.0;
-
-    // Прайс-лист для всех версий
-    if (modelName.contains('lite') || modelName.contains('2.0-flash')) {
-      inputPrice = 0.075; 
-      outputPrice = 0.30; 
-    } else if (modelName.contains('flash')) {
-      inputPrice = 0.10; 
-      outputPrice = 0.40; 
-    } else if (modelName.contains('pro')) {
-      inputPrice = 1.25;
-      outputPrice = 5.00;
-    }
-
-    return ((inputTokens / 1000000) * inputPrice) + ((outputTokens / 1000000) * outputPrice);
-  }
+  final String _apiKey = AppConfig.openRouterApiKey;
+  final Dio _dio = Dio();
 
   Future<AiResponseData> getAiResponse({
     required String userMessage,
@@ -43,55 +24,98 @@ final String _apiKey = AppConfig.geminiApiKey;
     required List<String> askedQuestions, 
   }) async {
     
-    // Берем модель прямо из настроек сессии
-    String currentModel = config.modelName; 
+    String memoryBlock = "ИМЯ КАНДИДАТА: ${config.userName}.\n";
+    if (config.userBio.isNotEmpty) memoryBlock += "ПРОФИЛЬ КАНДИДАТА: ${config.userBio}.\n";
+    if (userLegend.isNotEmpty) memoryBlock += "ОТВЕТ НА 'РАССКАЖИ О СЕБЕ': $userLegend\n";
+    if (askedQuestions.isNotEmpty) memoryBlock += "ТЕМЫ И ВОПРОСЫ, КОТОРЫЕ ТЫ УЖЕ ЗАДАВАЛ (не повторяйся!): ${askedQuestions.join(' | ')}.\n";
+
+    String systemInstruction;
+
+    // 👇 ОБЩЕЕ ПРАВИЛО ДЛЯ ОБОИХ РЕЖИМОВ 👇
+    String antiTrollRule = "ЗАЩИТА ОТ ТРОЛЛИНГА: Если пользователь откровенно издевается, спамит бессвязным бредом (например 'не', 'а', 'ы', '123'), матерится или посылает тебя — ты ОБЯЗАН ответить. Сначала напиши 2-3 предложения с максимально строгим и холодным отказом (укажи на недопустимость такого поведения). И ТОЛЬКО ПОСЛЕ ЭТОГО ТЕКСТА, в самом конце сообщения, добавь тег [FAIL]. Никогда не присылай тег [FAIL] без текстового пояснения. ВНИМАНИЕ: Честное признание 'я не знаю' — это НЕ троллинг, за это прерывать сессию запрещено.";
     
-    String memoryBlock = "";
-    memoryBlock += "ИМЯ КАНДИДАТА: ${config.userName}. Обращайся к нему по имени.\n";
-    if (config.userBio.isNotEmpty) {
-      memoryBlock += "ПРОФИЛЬ КАНДИДАТА (Бэкграунд): ${config.userBio}. Опирайся на этот опыт при общении.\n";
+    if (config.isRoleplayMode) {
+      // ПРОМПТ ДЛЯ СОБЕСЕДОВАНИЙ
+      systemInstruction = 
+        "Ты проводишь сюжетное собеседование. Роль кандидата: '${config.role}'. Уровень сложности: ${config.difficulty}.\n"
+        "Твой характер: ${config.persona}, Стиль: ${config.feedbackStyle}.\n"
+        "ПРАВИЛА:\n"
+        "1. ПРИДУМАЙ ИМЯ: Назови себя подходящим именем. Никаких [Твоё Имя]!\n"
+        "2. ЖИВАЯ РЕЧЬ: КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО цитировать название роли буква в букву. Вплетай название в речь естественно.\n"
+        "3. ЛОР: Вопросы должны СТРОГО соответствовать канону вселенной.\n"
+        "4. $antiTrollRule\n"
+        "5. РЕЖИМ «ДОЖИМ» (Drill-Down): Если кандидат отвечает правильно, НИКОГДА не хвали его. Вместо этого сразу усложни условие задачи.\n"
+        "6. ДИНАМИКА И СМЕНА ТЕМ: У тебя лимит вопросов. КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО топтаться на одной теме больше 2 сообщений! Задал вопрос -> получил ответ -> задал 1 уточнение -> СРАЗУ ПЕРЕХОДИШЬ К АБСОЛЮТНО НОВОЙ ТЕМЕ.\n"
+        "$memoryBlock";
+    } else {
+      // ПРОМПТ ДЛЯ ПРОВЕРКИ ЗНАНИЙ
+      String difficultyRules = "";
+      if (config.difficulty.contains("Легкий")) {
+        difficultyRules = "Задавай самые базовые, фундаментальные вопросы. Проверяй основы. Формулируй вопросы просто и понятно.";
+      } else if (config.difficulty.contains("Средний")) {
+        difficultyRules = "Задавай вопросы среднего уровня, требующие понимания процессов, взаимосвязей и умения решать типовые задачи.";
+      } else if (config.difficulty.contains("Сложный")) {
+        difficultyRules = "Задавай экспертные, каверзные вопросы. Требуй глубокого понимания неочевидных нюансов, архитектуры или сложных сценариев. Оценивай ответ максимально строго.";
+      }
+
+      systemInstruction = 
+        "Ты — нейросеть-экзаменатор. Твоя задача — проверить знания пользователя по теме (или профессии): '${config.role}'.\n"
+        "Стиль общения: ${config.feedbackStyle}.\n"
+        "УРОВЕНЬ СЛОЖНОСТИ: ${config.difficulty}. $difficultyRules\n\n"
+        "ПРАВИЛА:\n"
+        "1. БЕЗ РОЛЕЙ: Никаких имен, приветствий и HR-шелухи. Переходи сразу к делу.\n"
+        "2. ФОРМАТ ДИАЛОГА: Задавай только ОДИН вопрос за раз. Жди ответа. Получив ответ, коротко оцени его (в стиле '${config.feedbackStyle}'), исправь ошибку, если она есть, и СРАЗУ задай следующий вопрос.\n"
+        "3. $antiTrollRule\n"
+        "4. ДИНАМИКА ТЕМ: Ты должен протестировать пользователя с разных сторон темы '${config.role}'. Задав вопрос и получив ответ (и, если нужно, задав 1 уточняющий вопрос), СТРОГО меняй подтему. Не зацикливайся на одном и том же понятии!\n"
+        "5. Если пользователь отвечает 'не знаю' — кратко объясни суть и переходи к следующему вопросу.\n"
+        "6. Если пользователь просит уточнить или перефразировать вопрос — сделай это, не считая за ошибку.\n"
+        "$memoryBlock";
     }
-
-    if (userLegend.isNotEmpty) memoryBlock += "ОТВЕТ НА ВОПРОС 'РАССКАЖИ О СЕБЕ': $userLegend\n";
-    if (askedQuestions.isNotEmpty) memoryBlock += "УЖЕ ЗАДАННЫЕ ВОПРОСЫ (НЕ ПОВТОРЯЙ): ${askedQuestions.join(' | ')}.\n";
-
-   final model = GenerativeModel(
-      model: currentModel, 
-      apiKey: _apiKey,
-   systemInstruction: Content.system(
-        "Ты профессиональный интервьюер. Твоя задача провести глубокое собеседование/интервью на роль: '${config.role}'.\n"
-        "Твой характер и стиль ведения диалога: ${config.persona}, ${config.feedbackStyle}.\n\n"
-        "ВАЖНЫЕ ПРАВИЛА (СТРОГО СОБЛЮДАТЬ!):\n"
-        "1. Имя собеседника — ${config.userName}. ОБЯЗАТЕЛЬНО обращайся к нему по имени.\n"
-        "2. НИКАКИХ ШАБЛОНОВ: Категорически запрещено использовать плейсхолдеры вроде [Ваше Имя], [Название компании], [HR-департамент]. Придумывай реалистичные названия на ходу или просто говори от первого лица.\n"
-        "3. ЧЕЛОВЕЧНОСТЬ: Пиши максимально живым, разговорным языком. Избегай роботизированного канцелярита, сложных деепричастных оборотов и нудных маркированных списков. Веди себя как настоящий, живой эксперт в диалоге 1 на 1.\n"
-        "4. Твои вопросы должны СТРОГО соответствовать заявленной роли ('${config.role}'). Задавай вопросы исключительно по лору, навыкам и специфике выбранной роли.\n"
-        "${config.userBio.isNotEmpty ? "5. Учитывай бэкграунд собеседника: ${config.userBio}\n" : ""}"
-        "\n$memoryBlock"
-      ),
-    );
+          
+    List<Map<String, String>> messages = [{"role": "system", "content": systemInstruction}];
 
     final pastMessages = history.length > 1 ? history.sublist(0, history.length - 1) : <MessageEntity>[];
-    final List<Content> chatHistory = pastMessages.map((msg) => 
-        msg.isUser ? Content.text(msg.text) : Content.model([TextPart(msg.text)])).toList();
-
-    final chat = model.startChat(history: chatHistory);
+    for (var msg in pastMessages) {
+      messages.add({"role": msg.isUser ? "user" : "assistant", "content": msg.text});
+    }
+    messages.add({"role": "user", "content": userMessage});
 
     try {
-      final response = await chat.sendMessage(Content.text(userMessage));
-      final inTokens = response.usageMetadata?.promptTokenCount ?? 0;
-      final outTokens = response.usageMetadata?.candidatesTokenCount ?? 0;
-      final cost = _calculateCost(currentModel, inTokens, outTokens);
+      final response = await _dio.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $_apiKey',
+            'HTTP-Referer': 'https://github.com/anohas256-max/ai-interview', 
+            'X-Title': 'AI Interview App', 
+          },
+        ),
+        data: {
+          "model": config.modelName, 
+          "messages": messages,
+          "max_tokens": 8000,
+        },
+      );
+
+      final data = response.data;
+      final String text = data['choices'][0]['message']['content'];
       
-      return AiResponseData(text: response.text ?? "", inputTokens: inTokens, outputTokens: outTokens, cost: cost);
+      final int inTokens = data['usage']['prompt_tokens'] ?? 0;
+      final int outTokens = data['usage']['completion_tokens'] ?? 0;
+      final double cost = (data['usage']['total_cost'] ?? 0.0).toDouble();
+      
+      return AiResponseData(text: text, inputTokens: inTokens, outputTokens: outTokens, cost: cost);
+      
+    } on DioException catch (e) {
+      return AiResponseData(
+        text: "⚠️ [СИСТЕМНОЕ СООБЩЕНИЕ]: Ошибка связи. Код: ${e.response?.statusCode}. Детали: ${e.message}", 
+        inputTokens: 0, outputTokens: 0, cost: 0.0
+      );
     } catch (e) {
-      String errorMessage = e.toString();
-      if (errorMessage.contains('Quota exceeded') || errorMessage.contains('429')) {
-        errorMessage = "⚠️ [СИСТЕМНОЕ СООБЩЕНИЕ]: Превышен лимит бесплатных запросов к ИИ. Пожалуйста, подождите 30-60 секунд и повторите ответ.";
-      } else {
-        errorMessage = "⚠️ [СИСТЕМНОЕ СООБЩЕНИЕ]: Ошибка связи с нейросетью. Детали: $errorMessage";
-      }
-      return AiResponseData(text: errorMessage, inputTokens: 0, outputTokens: 0, cost: 0.0);
+      return AiResponseData(
+        text: "⚠️ [СИСТЕМНОЕ СООБЩЕНИЕ]: Неизвестная ошибка: $e", 
+        inputTokens: 0, outputTokens: 0, cost: 0.0
+      );
     }
   }
 }

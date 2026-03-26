@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sobes/features/interview/presentation/pages/analysis_page.dart';
 import 'package:sobes/features/interview/presentation/widgets/chat_bubble.dart';
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
+import '../widgets/audio_recorder_btn.dart';
 
 class ChatPage extends StatefulWidget {
   final String role;
@@ -24,10 +25,15 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<InterviewProvider>();
-      provider.clearChat();
-      // Заставляем ИИ начать диалог первым!
-      provider.startInterview(); 
+      // Внутри WidgetsBinding.instance.addPostFrameCallback
+final provider = context.read<InterviewProvider>();
+
+if (provider.messages.isEmpty) {
+    provider.startInterview();
+} else if (!provider.isFinished) {
+    // Резюмируем таймер только если интервью еще идет
+    provider.resumeTimer();
+}
     });
   }
 
@@ -64,60 +70,73 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Column(
+      body: Center( // 👈 ЦЕНТРИРУЕМ ДЛЯ ВЕБА
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800), // 👈 ОГРАНИЧИВАЕМ ШИРИНУ
+          child: Stack(
             children: [
-              // --- ШАПКА ЧАТА ---
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () {
-                          context.read<InterviewProvider>().clearChat();
-                          Navigator.pop(context);
-                        },
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1F1010),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.red.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(Icons.circle, size: 8, color: Colors.red),
-                            Gap(8),
-                            Text("Live", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context, 
-                            MaterialPageRoute(builder: (_) => const AnalysisPage())
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFF2B1515),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text("END", style: TextStyle(color: Color(0xFFFF453A), fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              Column(
+                children: [
+                  // --- ШАПКА ЧАТА ---
+                  SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: () {
+                              context.read<InterviewProvider>().pauseTimer();
+                              Navigator.pop(context);
+                            },
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1F1010),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: const [
+                                Icon(Icons.circle, size: 8, color: Colors.red),
+                                Gap(8),
+                                Text("Live", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                          
+                          IconButton(
+                            icon: Icon(
+                              provider.isVoiceEnabled ? Icons.volume_up : Icons.volume_off,
+                              color: provider.isVoiceEnabled ? Colors.white : Colors.grey,
+                            ),
+                            onPressed: () => provider.toggleVoice(),
+                          ),
 
-              // --- СПИСОК СООБЩЕНИЙ ---
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context, 
+                                MaterialPageRoute(builder: (_) => const AnalysisPage())
+                              );
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: const Color(0xFF2B1515),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), // 👈 СДЕЛАЛИ КНОПКУ ШИРЕ И ВЫШЕ
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // 👈 ЗАКРУГЛИЛИ
+                            ),
+                            child: const Text("END", style: TextStyle(color: Color(0xFFFF453A), fontWeight: FontWeight.bold, fontSize: 16)), // 👈 УВЕЛИЧИЛИ ШРИФТ
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // ... (весь остальной код Column остается без изменений, он автоматически сожмется под 800px)
+                  // --- СПИСОК СООБЩЕНИЙ ---
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
@@ -157,7 +176,7 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               ),
 
-              // 👇 НОВАЯ КНОПКА ПОВТОРА ПРИ ОШИБКЕ 👇
+              // --- КНОПКА ПОВТОРА ПРИ ОШИБКЕ ---
               if (messages.isNotEmpty && !messages.last.isUser && messages.last.text.contains('⚠️'))
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
@@ -177,8 +196,8 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                 ),
-              // 👆 КОНЕЦ КНОПКИ ПОВТОРА 👆
 
+              // --- ПАНЕЛЬ ВВОДА ИЛИ КНОПКА ЗАВЕРШЕНИЯ ---
               // --- ПАНЕЛЬ ВВОДА ИЛИ КНОПКА ЗАВЕРШЕНИЯ ---
               Container(
                 padding: const EdgeInsets.all(16),
@@ -193,24 +212,48 @@ class _ChatPageState extends State<ChatPage> {
                         height: 56,
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.pushReplacement(
+                            Navigator.push(
                               context, 
                               MaterialPageRoute(builder: (_) => const AnalysisPage())
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: provider.isFailed ? Colors.red[800] : Colors.green[700],
+                            // 👇 Цвета стали более благородными и приглушенными
+                            backgroundColor: provider.isFailed ? const Color(0xFFB71C1C) : const Color(0xFF2E7D32),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
-                          child: Text(
-                            provider.isFailed ? "Интервью прервано. Смотреть итоги" : "Собеседование завершено! Смотреть итоги", 
-                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                          // 👇 Используем Row с центрированием вместо ElevatedButton.icon
+                          // 👇 ИСПРАВЛЕННЫЙ ROW ДЛЯ КНОПКИ 👇
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center, 
+                            children: [
+                              Icon(
+                                provider.isFailed ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                                color: Colors.white,
+                              ),
+                              const Gap(12),
+                              Expanded( // 👈 ДОБАВИЛИ EXPANDED
+                                child: Text(
+                                  provider.isFailed ? "Интервью прервано. Смотреть итоги" : "Сессия завершена! Смотреть итоги", 
+                                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                                  maxLines: 2, // 👈 РАЗРЕШАЕМ ПЕРЕНОС НА 2 СТРОКИ
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       )
                     : Row(
+// ... дальше идет твой код с микрофоном и TextField ...
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
+                          AudioRecorderBtn(
+                            textController: _controller,
+                            isDisabled: isLoading,
+                          ),
+                          const Gap(4), 
+                          
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
@@ -225,7 +268,6 @@ class _ChatPageState extends State<ChatPage> {
                                       controller: _controller,
                                       minLines: 1,
                                       maxLines: 4,
-                                      // ДИНАМИЧЕСКИЙ ЛИМИТ: 1000 для легенды, 5000 для техники
                                       maxLength: provider.isLegendPhase ? 1000 : 5000, 
                                       style: const TextStyle(color: Colors.white),
                                       enabled: !isLoading, 
@@ -233,7 +275,7 @@ class _ChatPageState extends State<ChatPage> {
                                         hintText: provider.isLegendPhase ? "Кратко расскажите о себе..." : (isLoading ? "AI печатает..." : "Ваш ответ..."),
                                         hintStyle: const TextStyle(color: Colors.grey),
                                         border: InputBorder.none,
-                                        counterText: "", // Скрываем счетчик
+                                        counterText: "", 
                                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                                       ),
                                     ),
@@ -257,32 +299,34 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                 ),
               ),
-            ],
-          ),
-          
-          if (_isBullshitting)
-            IgnorePointer(
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
-                opacity: _isBullshitting ? 1.0 : 0.0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.red.withOpacity(0.6), width: 4),
-                    gradient: RadialGradient(colors: [Colors.transparent, Colors.red.withOpacity(0.15)], radius: 1.5),
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red, size: 48), Gap(8),
-                        Text("Too much fluff. Be specific.", style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
+                ],
+              ),
+              
+              if (_isBullshitting)
+                IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 300),
+                    opacity: _isBullshitting ? 1.0 : 0.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.red.withOpacity(0.6), width: 4),
+                        gradient: RadialGradient(colors: [Colors.transparent, Colors.red.withOpacity(0.15)], radius: 1.5),
+                      ),
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 48), Gap(8),
+                            Text("Too much fluff. Be specific.", style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
