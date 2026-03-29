@@ -6,10 +6,9 @@ import 'package:sobes/features/interview/presentation/pages/chat_page.dart';
 import 'package:sobes/features/interview/domain/entities/session_config.dart';
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
 import 'package:sobes/features/profile/presentation/providers/profile_provider.dart';
-// 👇 ДОБАВЛЕН ПРОВАЙДЕР КАТАЛОГА 👇
 import 'package:sobes/features/catalog/presentation/providers/catalog_provider.dart';
-
-// ❌ Массив quizTopics удален ❌
+// 👇 ДОБАВЛЕН ПРОВАЙДЕР АВТОРИЗАЦИИ 👇
+import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 
 const List<String> quizDifficulties = [
   'Легкий (Базовые понятия)', 'Средний (Углубленные знания)', 'Сложный (Экспертный уровень)'
@@ -38,11 +37,9 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 👇 ЧИТАЕМ ДАННЫЕ ИЗ БАЗЫ ДЖАНГО 👇
     final catalogProvider = context.watch<CatalogProvider>();
     final List<String> dynamicTopics = [...catalogProvider.quizTopics, 'Свой вариант ✍️'];
     
-    // Безопасная проверка
     String currentTopic = dynamicTopics.contains(selectedTopic) ? selectedTopic : dynamicTopics.first;
 
     return Scaffold(
@@ -61,10 +58,8 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- 1. ТЕМА ---
                     _buildLabel("ТЕМА ОПРОСА / ПРОФЕССИЯ"),
                     const Gap(8),
-                    // 👇 ДИНАМИЧЕСКИЙ СПИСОК 👇
                     _buildDropdown(value: currentTopic, items: dynamicTopics, onChanged: (val) => setState(() => selectedTopic = val!)),
                     if (currentTopic == 'Свой вариант ✍️') ...[
                       const Gap(8),
@@ -80,19 +75,16 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                     ],
                     const Gap(24),
 
-                    // --- 2. СЛОЖНОСТЬ ---
                     _buildLabel("УРОВЕНЬ СЛОЖНОСТИ"),
                     const Gap(8),
                     _buildDropdown(value: selectedDifficulty, items: quizDifficulties, onChanged: (val) => setState(() => selectedDifficulty = val!)),
                     const Gap(24),
 
-                    // --- 3. ОБЪЕМ ---
                     _buildLabel("ДЛИТЕЛЬНОСТЬ ОПРОСА"),
                     const Gap(8),
                     _buildDropdown(value: selectedLengthLabel, items: quizLengths.keys.toList(), onChanged: (val) => setState(() => selectedLengthLabel = val!)),
                     const Gap(24),
 
-                    // --- 4. СТИЛЬ ОБЩЕНИЯ ---
                     _buildLabel("СТИЛЬ ОБЩЕНИЯ"),
                     const Gap(12),
                     Row(
@@ -115,7 +107,6 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
               ),
             ),
 
-            // --- КНОПКА СТАРТ ---
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
@@ -126,6 +117,9 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                     String finalTopic = currentTopic == 'Свой вариант ✍️' && _customTopicCtrl.text.isNotEmpty ? _customTopicCtrl.text : currentTopic;
                     
                     final profileProvider = context.read<ProfileProvider>();
+                    // 👇 БЕРЕМ ИМЯ ИЗ AUTH PROVIDER 👇
+                    final authProvider = context.read<AuthProvider>();
+
                     final config = SessionConfig(
                       role: finalTopic,
                       persona: "Экзаменатор", 
@@ -134,7 +128,7 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                       feedbackStyle: communicationStyle, 
                       includeLegend: false, 
                       isRoleplayMode: false, 
-                      userName: profileProvider.userName, 
+                      userName: authProvider.currentUsername ?? "User", // 👈 ИСПРАВЛЕНА ОШИБКА
                       userBio: profileProvider.userBio,
                     );
 

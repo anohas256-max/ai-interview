@@ -7,10 +7,9 @@ import 'package:sobes/features/interview/presentation/pages/chat_page.dart';
 import 'package:sobes/features/interview/domain/entities/session_config.dart';
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
 import 'package:sobes/features/profile/presentation/providers/profile_provider.dart';
-// 👇 ДОБАВЛЕН ПРОВАЙДЕР КАТАЛОГА 👇
 import 'package:sobes/features/catalog/presentation/providers/catalog_provider.dart';
-
-// ❌ Массив availableRoles удален (теперь данные идут из БД) ❌
+// 👇 ДОБАВЛЕН ПРОВАЙДЕР АВТОРИЗАЦИИ 👇
+import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 
 const List<String> availablePersonas = [
   'Строгий HR-менеджер', 'Добродушный рекрутер', 'Придирчивый Техлид', 
@@ -29,7 +28,7 @@ class SetupPage extends StatefulWidget {
 }
 
 class _SetupPageState extends State<SetupPage> {
-  String selectedRole = 'Свой вариант ✍️'; // Безопасное стартовое значение
+  String selectedRole = 'Свой вариант ✍️';
   String selectedPersona = availablePersonas[0];
   String selectedDifficulty = availableDifficulties[3];
   
@@ -48,11 +47,9 @@ class _SetupPageState extends State<SetupPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 👇 ЧИТАЕМ ДАННЫЕ ИЗ БАЗЫ ДЖАНГО 👇
     final catalogProvider = context.watch<CatalogProvider>();
     final List<String> dynamicRoles = [...catalogProvider.interviewRoles, 'Свой вариант ✍️'];
     
-    // Защита от ошибок Dropdown (если выбранного пункта вдруг нет в списке)
     String currentRole = dynamicRoles.contains(selectedRole) ? selectedRole : dynamicRoles.first;
 
     return Scaffold(
@@ -71,10 +68,8 @@ class _SetupPageState extends State<SetupPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- 1. РОЛЬ ---
                     _buildLabel("ЖЕЛАЕМАЯ ДОЛЖНОСТЬ"),
                     const Gap(8),
-                    // 👇 ТЕПЕРЬ ТУТ ДИНАМИЧЕСКИЙ СПИСОК 👇
                     _buildDropdown(value: currentRole, items: dynamicRoles, onChanged: (val) => setState(() => selectedRole = val!)),
                     if (currentRole == 'Свой вариант ✍️') ...[
                       const Gap(8),
@@ -82,7 +77,6 @@ class _SetupPageState extends State<SetupPage> {
                     ],
                     const Gap(24),
 
-                    // --- 2. ПЕРСОНА ---
                     _buildLabel("ТИП ИНТЕРВЬЮЕРА"),
                     const Gap(8),
                     _buildDropdown(value: selectedPersona, items: availablePersonas, onChanged: (val) => setState(() => selectedPersona = val!)),
@@ -92,13 +86,11 @@ class _SetupPageState extends State<SetupPage> {
                     ],
                     const Gap(24),
 
-                    // --- 3. СЛОЖНОСТЬ ---
                     _buildLabel("УРОВЕНЬ СЛОЖНОСТИ"),
                     const Gap(8),
                     _buildDropdown(value: selectedDifficulty, items: availableDifficulties, onChanged: (val) => setState(() => selectedDifficulty = val!)),
                     const Gap(24),
 
-                    // --- 4. РЕЖИМЫ (ТОГЛЫ) ---
                     _buildLabel("РЕЖИМЫ РАБОТЫ"),
                     const Gap(8),
                     _buildToggleRow("Вводная часть (Опыт и скиллы)", includeLegend, (val) => setState(() => includeLegend = val)),
@@ -108,7 +100,6 @@ class _SetupPageState extends State<SetupPage> {
                     _buildToggleRow("Бесконечный режим ♾️", isEndlessMode, (val) => setState(() => isEndlessMode = val)),
                     const Gap(24),
 
-                    // --- 5. ЛИМИТ ВОПРОСОВ ---
                     AnimatedSize(
                       duration: const Duration(milliseconds: 300),
                       child: isEndlessMode ? const SizedBox.shrink() : Column(
@@ -162,7 +153,6 @@ class _SetupPageState extends State<SetupPage> {
                       ),
                     ),
 
-                    // --- 6. ФОРМАТ ОБЩЕНИЯ ---
                     _buildLabel("ФОРМАТ ОБЩЕНИЯ"),
                     const Gap(12),
                     Column(
@@ -189,7 +179,6 @@ class _SetupPageState extends State<SetupPage> {
               ),
             ),
 
-            // --- КНОПКА СТАРТ ---
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
@@ -201,10 +190,15 @@ class _SetupPageState extends State<SetupPage> {
                     String finalPersona = selectedPersona == 'Свой вариант ✍️' && _customPersonaCtrl.text.isNotEmpty ? _customPersonaCtrl.text : selectedPersona;
                     
                     final profileProvider = context.read<ProfileProvider>();
+                    // 👇 БЕРЕМ ИМЯ ИЗ AUTH PROVIDER 👇
+                    final authProvider = context.read<AuthProvider>();
+
                     final config = SessionConfig(
                       role: finalRole, persona: finalPersona, difficulty: selectedDifficulty, questionLimit: questionLimit,  
                       feedbackStyle: feedbackStyle, includeLegend: includeLegend, isTeachingMode: isTeachingMode, 
-                      isEndlessMode: isEndlessMode, userName: profileProvider.userName, userBio: profileProvider.userBio,
+                      isEndlessMode: isEndlessMode, 
+                      userName: authProvider.currentUsername ?? "User", // 👈 ИСПРАВЛЕНА ОШИБКА
+                      userBio: profileProvider.userBio,
                       isRoleplayMode: true, 
                     );
                     
@@ -223,7 +217,6 @@ class _SetupPageState extends State<SetupPage> {
     );
   }
 
-  // --- Helpers ---
   Widget _buildLabel(String text) => Text(text, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0));
 
   Widget _buildDropdown({required String value, required List<String> items, required Function(String?) onChanged}) {

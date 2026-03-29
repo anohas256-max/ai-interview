@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
@@ -15,8 +16,6 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>(); 
-  
-  // Флаг: нажата ли кнопка?
   bool _hasSubmitted = false; 
 
   final usernameController = TextEditingController();
@@ -27,15 +26,87 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // 👇 ПЕРЕМЕННЫЕ ДЛЯ ТАЙМЕРОВ 👇
+  Timer? _debounce;
+  String? _usernameError;
+  
+  Timer? _debounceEmail;
+  String? _emailError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Сбрасываем старые ошибки при входе на экран
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().clearError();
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel(); 
+    _debounceEmail?.cancel(); // 👈 Не забываем убивать таймер почты
+    super.dispose();
+  }
+
+  // --- ЛОГИКА УМНОЙ ПРОВЕРКИ ИМЕНИ ---
+  void _onUsernameChanged(String value) {
+    context.read<AuthProvider>().clearError();
+    
+    if (_usernameError != null) {
+      setState(() => _usernameError = null);
+    }
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    _debounce = Timer(const Duration(milliseconds: 800), () async {
+      if (value.trim().length >= 3) {
+        final isTaken = await context.read<AuthProvider>().isUsernameTaken(value.trim());
+        if (isTaken && mounted) {
+          setState(() {
+            _usernameError = "Это имя уже занято 😔";
+          });
+        }
+      }
+    });
+  }
+
+  // 👇 НОВАЯ ЛОГИКА УМНОЙ ПРОВЕРКИ EMAIL 👇
+  void _onEmailChanged(String value) {
+    context.read<AuthProvider>().clearError();
+    
+    if (_emailError != null) {
+      setState(() => _emailError = null);
+    }
+
+    if (_debounceEmail?.isActive ?? false) _debounceEmail!.cancel();
+    
+    _debounceEmail = Timer(const Duration(milliseconds: 800), () async {
+      final emailValid = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").hasMatch(value.trim());
+      if (emailValid) {
+        final isTaken = await context.read<AuthProvider>().isEmailTaken(value.trim());
+        if (isTaken && mounted) {
+          setState(() {
+            _emailError = "На этот емайл уже создан акк 😔";
+          });
+        }
+      }
+    });
+  }
+
+  void _onOtherFieldChanged(String value) {
+    context.read<AuthProvider>().clearError();
+  }
+
   void _handleSignUp() async {
     FocusScope.of(context).unfocus();
 
-    // Говорим приложению: "Юзер нажал кнопку, теперь пустые поля - это ошибка!"
     setState(() {
       _hasSubmitted = true;
     });
 
-    if (!_formKey.currentState!.validate()) {
+    // 👈 Блокируем отправку, если есть ошибки логина ИЛИ почты
+    if (!_formKey.currentState!.validate() || _usernameError != null || _emailError != null) {
       return; 
     }
 
@@ -79,7 +150,6 @@ class _SignUpPageState extends State<SignUpPage> {
           padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
-            // 👇 ТЕПЕРЬ ПРОВЕРКА ВСЕГДА ВКЛЮЧЕНА (чтобы реагировать на стирание текста)
             autovalidateMode: AutovalidateMode.onUserInteraction, 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -120,16 +190,15 @@ class _SignUpPageState extends State<SignUpPage> {
                   const Gap(16),
                 ],
 
-                // 👇 ХИТРАЯ ЛОГИКА В ВАЛИДАТОРАХ 👇
                 _buildTextFormField(
                   label: "Логин", 
                   icon: Icons.person_outline, 
                   controller: usernameController,
+                  onChanged: _onUsernameChanged, 
                   validator: (value) {
-                    // Если пусто, ругаемся ТОЛЬКО если кнопка уже нажималась
                     if (value == null || value.trim().isEmpty) return _hasSubmitted ? "Введите логин" : null;
-                    // Если начал вводить, но мало - ругаемся сразу
                     if (value.trim().length < 3) return "Логин слишком короткий";
+                    if (_usernameError != null) return _usernameError; 
                     return null; 
                   },
                 ),
@@ -139,27 +208,30 @@ class _SignUpPageState extends State<SignUpPage> {
                   label: "Email", 
                   icon: Icons.email_outlined, 
                   controller: emailController,
+                  onChanged: _onEmailChanged, // 👈 Подключили проверку почты
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) return _hasSubmitted ? "Введите email" : null;
                     final emailValid = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").hasMatch(value.trim());
                     if (!emailValid) return "Некорректный формат почты";
+                    if (_emailError != null) return _emailError; // 👈 Выводим ошибку, если занято
                     return null;
                   },
                 ),
                 const Gap(16),
                 
                 _buildTextFormField(
-                  label: "Пароль (минимум 8 символов)", 
+                  label: "Пароль (минимум 6 символов)", 
                   icon: Icons.lock_outline, 
                   controller: passwordController,
                   obscureText: !_isPasswordVisible, 
+                  onChanged: _onOtherFieldChanged,
                   suffixIcon: IconButton(
                     icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
                     onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return _hasSubmitted ? "Введите пароль" : null;
-                    if (value.length < 8) return "Пароль должен быть не менее 8 символов";
+                    if (value.length < 6) return "Пароль должен быть не менее 6 символов"; 
                     return null;
                   },
                 ),
@@ -170,6 +242,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   icon: Icons.lock_reset, 
                   controller: confirmPasswordController,
                   obscureText: !_isConfirmPasswordVisible, 
+                  onChanged: _onOtherFieldChanged,
                   suffixIcon: IconButton(
                     icon: Icon(_isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
                     onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
@@ -213,10 +286,12 @@ class _SignUpPageState extends State<SignUpPage> {
     required String? Function(String?) validator, 
     bool obscureText = false, 
     Widget? suffixIcon,       
+    void Function(String)? onChanged, 
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
+      onChanged: onChanged, 
       style: const TextStyle(color: Colors.white),
       validator: validator, 
       decoration: InputDecoration(
