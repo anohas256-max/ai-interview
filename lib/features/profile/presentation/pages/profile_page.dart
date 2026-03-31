@@ -3,7 +3,6 @@ import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 
 import 'package:sobes/features/profile/presentation/providers/profile_provider.dart';
-// 👇 Импортируем AuthProvider и Экран Логина 👇
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 import 'package:sobes/features/auth/presentation/pages/login_page.dart';
 
@@ -16,6 +15,63 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   bool _isDarkMode = true;
+
+  // 👇 ФУНКЦИЯ ИЗМЕНЕНИЯ ИМЕНИ 👇
+  void _editName() {
+    final authProvider = context.read<AuthProvider>();
+    
+    // Если имя еще не задано, в поле ввода будет пусто, а не логин
+    final initialName = authProvider.currentFirstName ?? "";
+    TextEditingController controller = TextEditingController(text: initialName);
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder( // StatefulBuilder нужен для работы крутилки загрузки внутри диалога
+        builder: (context, setStateDialog) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E1E), 
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Edit Display Name", style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white),
+            cursorColor: Colors.white,
+            decoration: InputDecoration(
+              hintText: "How should we call you?",
+              hintStyle: TextStyle(color: Colors.grey[600]),
+              enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+              focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            TextButton(
+              onPressed: authProvider.isLoading ? null : () async {
+                final newName = controller.text.trim();
+                
+                setStateDialog(() {}); // Включаем лоадер
+                
+                final success = await authProvider.updateName(newName);
+                
+                if (success && context.mounted) {
+                  Navigator.pop(context);
+                  _showDummyAction("Имя успешно обновлено!");
+                } else if (context.mounted) {
+                  setStateDialog(() {}); // Выключаем лоадер
+                  _showDummyAction(authProvider.errorMessage ?? "Ошибка сервера");
+                }
+              },
+              child: authProvider.isLoading 
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   // Изменение текста "Обо мне"
   void _editAboutMe() {
@@ -108,17 +164,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // 👇 БЕРЕМ РЕАЛЬНЫЕ ДАННЫЕ ИЗ БАЗЫ ДАННЫХ ЧЕРЕЗ AUTH PROVIDER 👇
     final authData = context.watch<AuthProvider>();
-    final currentName = authData.currentUsername ?? "Loading...";
+    final currentUsername = authData.currentUsername ?? "Loading...";
     final currentEmail = authData.currentEmail ?? "Loading...";
+    
+    // 👇 ЛОГИКА ОТОБРАЖЕНИЯ ИМЕНИ 👇
+    // Если first_name заполнено — показываем его. Если пусто — показываем логин.
+    final displayName = (authData.currentFirstName != null && authData.currentFirstName!.isNotEmpty) 
+        ? authData.currentFirstName! 
+        : currentUsername;
 
-    // Био берем из локального ProfileProvider
     final currentBio = context.watch<ProfileProvider>().userBio;
 
-    // Вычисляем инициалы из имени
-    String initials = currentName.trim().isNotEmpty && currentName != "Loading..."
-        ? currentName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join()
+    // Инициалы считаем из красивого имени
+    String initials = displayName.trim().isNotEmpty && displayName != "Loading..."
+        ? displayName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join()
         : "?";
 
     return Scaffold(
@@ -178,10 +238,21 @@ class _ProfilePageState extends State<ProfilePage> {
               
               const Gap(16),
 
-              // 2. Имя и Email (Теперь просто текст, без карандашика)
-              Text(currentName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              // 2. Имя, Логин и Email
+              GestureDetector(
+                onTap: _editName, // 👈 Карандашик теперь работает!
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(displayName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    const Gap(8),
+                    Icon(Icons.edit, color: Colors.grey[600], size: 16),
+                  ],
+                ),
+              ),
               const Gap(4),
-              Text(currentEmail, style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+              // 👇 Показываем системный логин с собачкой и почту
+              Text("@$currentUsername • $currentEmail", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
 
               const Gap(32),
 
@@ -292,15 +363,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const Gap(40),
 
-              // 6. КНОПКА ВЫХОДА (ТЕПЕРЬ РАБОТАЕТ)
+              // 6. КНОПКА ВЫХОДА 
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () async {
-                    // 1. Стираем токен и данные
                     await context.read<AuthProvider>().logout();
-                    
-                    // 2. Если всё ок - выкидываем на экран Входа, удаляя всю историю
                     if (context.mounted) {
                       Navigator.pushAndRemoveUntil(
                         context,

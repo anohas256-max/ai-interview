@@ -10,6 +10,7 @@ class AuthProvider extends ChangeNotifier {
 
   String? currentUsername;
   String? currentEmail;
+  String? currentFirstName; // 👈 Добавили переменную для Имени
 
   AuthProvider() { checkAuth(); }
 
@@ -35,16 +36,17 @@ class AuthProvider extends ChangeNotifier {
     return await _apiSource.checkUsername(username);
   }
 
-  // 👇 НОВЫЙ МЕТОД ДЛЯ EMAIL 👇
   Future<bool> isEmailTaken(String email) async {
     return await _apiSource.checkEmail(email);
   }
 
+  // 👇 ОБНОВЛЕНО: Теперь забираем с сервера еще и first_name
   Future<void> fetchCurrentUser() async {
     final userData = await _apiSource.getCurrentUser();
     if (userData != null) {
       currentUsername = userData['username'];
       currentEmail = userData['email'];
+      currentFirstName = userData['first_name']; 
       notifyListeners();
     }
   }
@@ -84,11 +86,31 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
+  // 👇 НОВАЯ ФУНКЦИЯ: Сохраняем новое имя на сервер
+  Future<bool> updateName(String newName) async {
+    isLoading = true;
+    notifyListeners();
+
+    final success = await _apiSource.updateFirstName(newName);
+    if (success) {
+      currentFirstName = newName; // Меняем имя локально
+      errorMessage = null;
+    } else {
+      errorMessage = "Ошибка при обновлении имени";
+    }
+
+    isLoading = false;
+    notifyListeners();
+    return success;
+  }
+
+  // 👇 ОБНОВЛЕНО: Стираем first_name при выходе
   Future<void> logout() async {
     await _apiSource.logout();
     isAuthenticated = false;
     currentUsername = null;
     currentEmail = null;
+    currentFirstName = null; 
     notifyListeners();
   }
 }
