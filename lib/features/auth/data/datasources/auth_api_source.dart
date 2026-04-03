@@ -1,36 +1,34 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // 👈 Магия проверки платформы
 
 class AuthApiSource {
   late final Dio _dio;
   final String baseUrl = 'http://127.0.0.1:8000/api';
   
-  // Создаем экземпляр защищенного сейфа
   final _storage = const FlutterSecureStorage();
 
   AuthApiSource() {
-    // Настраиваем базовый URL, чтобы не писать его каждый раз
     _dio = Dio(BaseOptions(baseUrl: baseUrl));
 
-    // 👇 НАШ УМНЫЙ ОХРАННИК 👇
+    // Наш умный охранник
     _dio.interceptors.add(
       InterceptorsWrapper(
-        // 1. ПЕРЕД КАЖДЫМ ЗАПРОСОМ: Достаем токен из сейфа и приклеиваем
         onRequest: (options, handler) async {
-          final token = await _storage.read(key: 'access_token');
+          // Охранник просит токен у умного помощника 👇
+          final token = await _getAccessToken();
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           return handler.next(options);
         },
-        // 2. ПРИ ОШИБКЕ: Ловим 401 (протухший токен) и обновляем его
         onError: (DioException e, handler) async {
           if (e.response?.statusCode == 401) {
             final isRefreshed = await _refreshToken();
 
             if (isRefreshed) {
-              // Если успешно обновили — берем новый токен и ПОВТОРЯЕМ запрос
-              final newToken = await _storage.read(key: 'access_token');
+              final newToken = await _getAccessToken();
               e.requestOptions.headers['Authorization'] = 'Bearer $newToken';
 
               try {
@@ -40,7 +38,6 @@ class AuthApiSource {
                 return handler.next(e);
               }
             } else {
-              // Если refresh_token тоже умер — выкидываем из аккаунта
               await logout();
             }
           }
@@ -50,20 +47,73 @@ class AuthApiSource {
     );
   }
 
-  // --- СКРЫТЫЙ МЕТОД ДЛЯ ОБНОВЛЕНИЯ ТОКЕНА ---
+  // =======================================================
+  // 👇 УМНЫЕ ПОМОЩНИКИ ДЛЯ КРОССПЛАТФОРМЫ 👇
+  // =======================================================
+
+  Future<void> _saveTokens(String access, String refresh) async {
+    if (kIsWeb) {
+      // Если Веб — пишем в обычный блокнот
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access_token', access);
+      await prefs.setString('refresh_token', refresh);
+    } else {
+      // Если Телефон — прячем в сейф
+      await _storage.write(key: 'access_token', value: access);
+      await _storage.write(key: 'refresh_token', value: refresh);
+    }
+  }
+
+  Future<String?> _getAccessToken() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('access_token');
+    } else {
+      return await _storage.read(key: 'access_token');
+    }
+  }
+
+  Future<String?> _getRefreshToken() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('refresh_token');
+    } else {
+      return await _storage.read(key: 'refresh_token');
+    }
+  }
+
+  Future<void> _clearTokens() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+    } else {
+      await _storage.deleteAll();
+    }
+  }
+
+  // =======================================================
+  // 👆 КОНЕЦ ПОМОЩНИКОВ 👆
+  // =======================================================
+
   Future<bool> _refreshToken() async {
     try {
-      final refreshToken = await _storage.read(key: 'refresh_token');
+      final refreshToken = await _getRefreshToken();
       if (refreshToken == null) return false;
 
-      // Используем новый чистый Dio, чтобы охранник не зациклил сам себя
       final response = await Dio().post(
         '$baseUrl/auth/jwt/refresh/',
         data: {'refresh': refreshToken},
       );
 
       if (response.statusCode == 200) {
-        await _storage.write(key: 'access_token', value: response.data['access']);
+        // Обновляем только access токен
+        if (kIsWeb) {
+           final prefs = await SharedPreferences.getInstance();
+           await prefs.setString('access_token', response.data['access']);
+        } else {
+           await _storage.write(key: 'access_token', value: response.data['access']);
+        }
         return true;
       }
       return false;
@@ -72,19 +122,15 @@ class AuthApiSource {
     }
   }
 
-  // --- ЛОГИН ---
   Future<bool> login(String username, String password) async {
     try {
-      // Используем чистый Dio для логина (нам тут не нужен токен в заголовках)
       final response = await Dio().post(
         '$baseUrl/auth/jwt/create/',
         data: {'username': username, 'password': password},
       );
 
       if (response.statusCode == 200) {
-        // Кладем токены в защищенный сейф
-        await _storage.write(key: 'access_token', value: response.data['access']);
-        await _storage.write(key: 'refresh_token', value: response.data['refresh']);
+        await _saveTokens(response.data['access'], response.data['refresh']);
         return true;
       }
       return false;
@@ -93,7 +139,6 @@ class AuthApiSource {
     }
   }
 
-  // --- РЕГИСТРАЦИЯ ---
   Future<bool> register(String username, String password, String email) async {
     try {
       final response = await Dio().post(
@@ -106,7 +151,6 @@ class AuthApiSource {
     }
   }
 
-  // --- ПРОВЕРКИ ---
   Future<bool> checkUsername(String username) async {
     try {
       final response = await _dio.get('/check-username/', queryParameters: {'username': username});
@@ -121,8 +165,6 @@ class AuthApiSource {
     } catch (e) { return false; }
   }
 
-  // --- ПРОФИЛЬ ---
-  // Токены подставляются автоматически!
   Future<Map<String, dynamic>?> getCurrentUser() async {
     try {
       final response = await _dio.get('/users/me/');
@@ -141,12 +183,34 @@ class AuthApiSource {
     } catch (e) { return false; }
   }
 
-  // --- ВЫХОД ---
+  Future<String?> changePassword(String oldPassword, String newPassword) async {
+    try {
+      final response = await _dio.post(
+        '/change-password/',
+        data: {
+          'old_password': oldPassword,
+          'new_password': newPassword,
+        },
+      );
+
+      if (response.statusCode == 200) return null; 
+      return 'error';
+    } catch (e) {
+      // 👇 ДОБАВИЛИ ЗАЩИТУ "e.response?.data is Map" 👇
+      if (e is DioException && e.response?.statusCode == 400) {
+        if (e.response?.data is Map && e.response?.data['error'] == 'current_password_incorrect') {
+          return 'incorrect';
+        }
+      }
+      return 'unknown';
+    }
+  }
+
   Future<void> logout() async {
-    await _storage.deleteAll(); // Уничтожаем всё в сейфе
+    await _clearTokens(); 
   }
 
   Future<String?> getToken() async {
-    return await _storage.read(key: 'access_token');
+    return await _getAccessToken();
   }
 }

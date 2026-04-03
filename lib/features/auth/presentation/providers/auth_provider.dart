@@ -10,7 +10,9 @@ class AuthProvider extends ChangeNotifier {
 
   String? currentUsername;
   String? currentEmail;
-  String? currentFirstName; // 👈 Добавили переменную для Имени
+  String? currentFirstName; 
+
+  int passwordAttempts = 0; // 👈 Внутри класса!
 
   AuthProvider() { checkAuth(); }
 
@@ -40,7 +42,6 @@ class AuthProvider extends ChangeNotifier {
     return await _apiSource.checkEmail(email);
   }
 
-  // 👇 ОБНОВЛЕНО: Теперь забираем с сервера еще и first_name
   Future<void> fetchCurrentUser() async {
     final userData = await _apiSource.getCurrentUser();
     if (userData != null) {
@@ -86,14 +87,13 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
-  // 👇 НОВАЯ ФУНКЦИЯ: Сохраняем новое имя на сервер
   Future<bool> updateName(String newName) async {
     isLoading = true;
     notifyListeners();
 
     final success = await _apiSource.updateFirstName(newName);
     if (success) {
-      currentFirstName = newName; // Меняем имя локально
+      currentFirstName = newName; 
       errorMessage = null;
     } else {
       errorMessage = "Ошибка при обновлении имени";
@@ -104,7 +104,26 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
-  // 👇 ОБНОВЛЕНО: Стираем first_name при выходе
+  // 👇 ВНУТРИ КЛАССА 👇
+  Future<String?> changePassword(String old, String newP) async {
+    if (passwordAttempts >= 5) {
+      return "Too many attempts. Try again later.";
+    }
+
+    final result = await _apiSource.changePassword(old, newP);
+    
+    if (result == 'incorrect') {
+      passwordAttempts++;
+      return "Текущий пароль неверен";
+    }
+    
+    if (result == null) {
+      passwordAttempts = 0; 
+    }
+    
+    return result;
+  }
+
   Future<void> logout() async {
     await _apiSource.logout();
     isAuthenticated = false;
@@ -113,4 +132,4 @@ class AuthProvider extends ChangeNotifier {
     currentFirstName = null; 
     notifyListeners();
   }
-}
+} 

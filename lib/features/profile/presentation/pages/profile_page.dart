@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sobes/features/profile/presentation/providers/profile_provider.dart';
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 import 'package:sobes/features/auth/presentation/pages/login_page.dart';
+import 'package:sobes/core/providers/settings_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,32 +15,25 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _isDarkMode = true;
 
-  // 👇 ФУНКЦИЯ ИЗМЕНЕНИЯ ИМЕНИ 👇
   void _editName() {
     final authProvider = context.read<AuthProvider>();
-    
-    // Если имя еще не задано, в поле ввода будет пусто, а не логин
     final initialName = authProvider.currentFirstName ?? "";
     TextEditingController controller = TextEditingController(text: initialName);
     
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder( // StatefulBuilder нужен для работы крутилки загрузки внутри диалога
+      builder: (context) => StatefulBuilder( 
         builder: (context, setStateDialog) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E), 
+          backgroundColor: Theme.of(context).cardColor, 
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Edit Display Name", style: TextStyle(color: Colors.white)),
+          title: Text("Edit Display Name", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
           content: TextField(
             controller: controller,
-            style: const TextStyle(color: Colors.white),
-            cursorColor: Colors.white,
+            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
             decoration: InputDecoration(
               hintText: "How should we call you?",
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-              focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+              hintStyle: const TextStyle(color: Colors.grey),
             ),
           ),
           actions: [
@@ -50,22 +44,20 @@ class _ProfilePageState extends State<ProfilePage> {
             TextButton(
               onPressed: authProvider.isLoading ? null : () async {
                 final newName = controller.text.trim();
-                
-                setStateDialog(() {}); // Включаем лоадер
-                
+                setStateDialog(() {}); 
                 final success = await authProvider.updateName(newName);
                 
                 if (success && context.mounted) {
                   Navigator.pop(context);
                   _showDummyAction("Имя успешно обновлено!");
                 } else if (context.mounted) {
-                  setStateDialog(() {}); // Выключаем лоадер
+                  setStateDialog(() {}); 
                   _showDummyAction(authProvider.errorMessage ?? "Ошибка сервера");
                 }
               },
               child: authProvider.isLoading 
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -73,7 +65,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Изменение текста "Обо мне"
   void _editAboutMe() {
     final currentBio = context.read<ProfileProvider>().userBio;
     TextEditingController controller = TextEditingController(text: currentBio);
@@ -81,19 +72,16 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Edit Context", style: TextStyle(color: Colors.white)),
+        title: Text("Edit Context", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
         content: TextField(
           controller: controller,
           maxLines: 4, 
-          style: const TextStyle(color: Colors.white),
-          cursorColor: Colors.white,
-          decoration: InputDecoration(
+          style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+          decoration: const InputDecoration(
             hintText: "Tell AI about your experience...",
-            hintStyle: TextStyle(color: Colors.grey[600]),
-            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey[800]!), borderRadius: BorderRadius.circular(12)),
-            focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.white), borderRadius: BorderRadius.circular(12)),
+            hintStyle: TextStyle(color: Colors.grey),
           ),
         ),
         actions: [
@@ -106,46 +94,100 @@ class _ProfilePageState extends State<ProfilePage> {
               context.read<ProfileProvider>().updateBio(controller.text);
               Navigator.pop(context);
             },
-            child: const Text("Save", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  void _changePassword() {
-    TextEditingController controller = TextEditingController();
+  bool _obsOld = true;
+  bool _obsNew = true;
+  bool _obsConf = true;
+
+ void _changePassword() {
+    final oldController = TextEditingController();
+    final newController = TextEditingController();
+    final confController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    // 👇 Эта переменная будет хранить ошибку и показывать её внутри окна
+    String? errorMessage; 
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Change Password", style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: controller,
-          obscureText: true, 
-          style: const TextStyle(color: Colors.white),
-          cursorColor: Colors.white,
-          decoration: InputDecoration(
-            hintText: "New password",
-            hintStyle: TextStyle(color: Colors.grey[600]),
-            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          backgroundColor: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          title: Text("Change Password", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 👇 ЕСЛИ ЕСТЬ ОШИБКА — ПОКАЗЫВАЕМ ЕЁ КРАСНЫМ 👇
+                  if (errorMessage != null) ...[
+                    Text(errorMessage!, style: const TextStyle(color: Color(0xFFFF453A), fontSize: 13, fontWeight: FontWeight.bold)),
+                    const Gap(12),
+                  ],
+                  _buildDialogField("Old Password", oldController, _obsOld, () => setStateDialog(() => _obsOld = !_obsOld)),
+                  const Gap(12),
+                  _buildDialogField("New Password", newController, _obsNew, () => setStateDialog(() => _obsNew = !_obsNew)),
+                  const Gap(12),
+                  _buildDialogField("Confirm Password", confController, _obsConf, () => setStateDialog(() => _obsConf = !_obsConf)),
+                ],
+              ),
+            ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
+            ElevatedButton(
+              onPressed: () async {
+                // Перед каждой проверкой сбрасываем старую ошибку
+                setStateDialog(() => errorMessage = null); 
+
+                if (newController.text != confController.text) {
+                  setStateDialog(() => errorMessage = "Пароли не совпадают");
+                  return;
+                }
+                if (newController.text.length < 6) {
+                  setStateDialog(() => errorMessage = "Минимум 6 символов");
+                  return;
+                }
+
+                final authProvider = context.read<AuthProvider>();
+                final errorFromServer = await authProvider.changePassword(oldController.text, newController.text);
+                
+                if (context.mounted) {
+                  if (errorFromServer == null) {
+                    Navigator.pop(context); // Успех! Закрываем окно
+                    _showDummyAction("Пароль успешно изменен!"); // Пишем уведомление внизу экрана
+                  } else {
+                    setStateDialog(() => errorMessage = errorFromServer); // Рисуем ошибку внутри окна
+                  }
+                }
+              },
+              child: const Text("Update"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showDummyAction("Password updated successfully!");
-            },
-            child: const Text("Update", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogField(String hint, TextEditingController ctr, bool obscure, VoidCallback toggle) {
+    return TextFormField(
+      controller: ctr,
+      obscureText: obscure,
+      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey),
+        suffixIcon: IconButton(icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, color: Colors.grey), onPressed: toggle),
       ),
     );
   }
@@ -165,29 +207,32 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final authData = context.watch<AuthProvider>();
+    final settings = context.watch<SettingsProvider>(); 
+    
     final currentUsername = authData.currentUsername ?? "Loading...";
     final currentEmail = authData.currentEmail ?? "Loading...";
     
-    // 👇 ЛОГИКА ОТОБРАЖЕНИЯ ИМЕНИ 👇
-    // Если first_name заполнено — показываем его. Если пусто — показываем логин.
     final displayName = (authData.currentFirstName != null && authData.currentFirstName!.isNotEmpty) 
         ? authData.currentFirstName! 
         : currentUsername;
 
     final currentBio = context.watch<ProfileProvider>().userBio;
 
-    // Инициалы считаем из красивого имени
     String initials = displayName.trim().isNotEmpty && displayName != "Loading..."
         ? displayName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join()
         : "?";
 
+    // Адаптивные цвета для текущей темы
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final cardColor = Theme.of(context).cardColor;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👈 ТЕПЕРЬ ФОН МЕНЯЕТСЯ!
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -199,7 +244,6 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               const Gap(10),
 
-              // 1. Аватарка
               Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -207,17 +251,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF151515),
+                      color: cardColor,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                      boxShadow: [
-                        BoxShadow(color: Colors.blueAccent.withOpacity(0.1), blurRadius: 20, spreadRadius: 1),
-                      ],
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
                     ),
                     child: Center(
                       child: Text(
                         initials, 
-                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: textColor, fontSize: 32, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -238,38 +279,34 @@ class _ProfilePageState extends State<ProfilePage> {
               
               const Gap(16),
 
-              // 2. Имя, Логин и Email
               GestureDetector(
-                onTap: _editName, // 👈 Карандашик теперь работает!
+                onTap: _editName,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(displayName, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(displayName, style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold)),
                     const Gap(8),
                     Icon(Icons.edit, color: Colors.grey[600], size: 16),
                   ],
                 ),
               ),
               const Gap(4),
-              // 👇 Показываем системный логин с собачкой и почту
-              Text("@$currentUsername • $currentEmail", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              Text("@$currentUsername • $currentEmail", style: const TextStyle(color: Colors.grey, fontSize: 13)),
 
               const Gap(32),
 
-              // 3. Карточка "Обо мне / Контекст"
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: _editAboutMe,
                   borderRadius: BorderRadius.circular(20),
-                  splashColor: Colors.white.withOpacity(0.1),
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF151515),
+                      color: cardColor,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,12 +314,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text("ABOUT ME / CONTEXT", style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                            const Text("ABOUT ME / CONTEXT", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                             Icon(Icons.edit_outlined, color: Colors.grey[600], size: 18),
                           ],
                         ),
                         const Gap(12),
-                        Text(currentBio, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5)),
+                        Text(currentBio, style: TextStyle(color: textColor, fontSize: 15, height: 1.5)),
                       ],
                     ),
                   ),
@@ -291,38 +328,29 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const Gap(24),
 
-              // 4. БЛОК ДОП. НАСТРОЕК
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF151515),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
                 ),
                 child: Column(
                   children: [
                     _buildSettingsTile(
                       icon: Icons.language,
-                      title: "Language",
-                      trailingText: "English",
-                      onTap: () => _showDummyAction("Language selection coming soon"),
+                      title: settings.currentLanguage == "English" ? "Language" : "Язык", // 👈 Оживили перевод заголовка
+                      trailingText: settings.currentLanguage,
+                      textColor: textColor,
+                      onTap: () {
+                        settings.setLanguage(settings.currentLanguage == "English" ? "Русский" : "English");
+                      },
                     ),
-                    Divider(color: Colors.white.withOpacity(0.05), height: 1),
+                    Divider(color: Colors.grey.withOpacity(0.2), height: 1),
                     _buildSettingsTile(
                       icon: Icons.lock_outline,
                       title: "Change Password",
+                      textColor: textColor,
                       onTap: _changePassword,
-                    ),
-                    Divider(color: Colors.white.withOpacity(0.05), height: 1),
-                    _buildSettingsTile(
-                      icon: Icons.notifications_none,
-                      title: "Notifications",
-                      onTap: () => _showDummyAction("Notification settings coming soon"),
-                    ),
-                    Divider(color: Colors.white.withOpacity(0.05), height: 1),
-                    _buildSettingsTile(
-                      icon: Icons.help_outline,
-                      title: "Help & Support",
-                      onTap: () => _showDummyAction("Support page coming soon"),
                     ),
                   ],
                 ),
@@ -330,32 +358,29 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const Gap(16),
 
-              // 5. Переключатель темы
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF151515),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.dark_mode_outlined, color: Colors.grey, size: 20),
-                        Gap(12),
-                        Text("Dark Mode", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+                        const Icon(Icons.dark_mode_outlined, color: Colors.grey, size: 20),
+                        const Gap(12),
+                        Text("Dark Mode", style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w500)),
                       ],
                     ),
                     Switch(
-                      value: _isDarkMode,
-                      onChanged: (value) => setState(() => _isDarkMode = value),
+                      value: settings.themeMode == ThemeMode.dark,
+                      onChanged: (value) => settings.toggleTheme(),
                       activeColor: Colors.black,
-                      activeTrackColor: Colors.white,
-                      inactiveThumbColor: Colors.grey,
-                      inactiveTrackColor: Colors.black,
+                      activeTrackColor: Colors.grey[300],
                     ),
                   ],
                 ),
@@ -363,7 +388,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const Gap(40),
 
-              // 6. КНОПКА ВЫХОДА 
               Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -378,7 +402,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     }
                   },
                   borderRadius: BorderRadius.circular(12),
-                  splashColor: Colors.red.withOpacity(0.2),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                     child: Text("Sign Out", style: TextStyle(color: Color(0xFFFF453A), fontSize: 16, fontWeight: FontWeight.w600)),
@@ -394,12 +417,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildSettingsTile({required IconData icon, required String title, String? trailingText, required VoidCallback onTap}) {
+  Widget _buildSettingsTile({required IconData icon, required String title, String? trailingText, Color? textColor, required VoidCallback onTap}) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        splashColor: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(20),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -410,16 +432,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Icon(icon, color: Colors.grey, size: 20),
                   const Gap(12),
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+                  Text(title, style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w500)),
                 ],
               ),
               Row(
                 children: [
                   if (trailingText != null) ...[
-                    Text(trailingText, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                    Text(trailingText, style: const TextStyle(color: Colors.grey, fontSize: 14)),
                     const Gap(8),
                   ],
-                  Icon(Icons.arrow_forward_ios, color: Colors.grey[600], size: 14),
+                  const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
                 ],
               ),
             ],

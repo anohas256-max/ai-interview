@@ -8,6 +8,7 @@ import '../../features/profile/presentation/providers/profile_provider.dart';
 import '../../features/history/presentation/providers/history_provider.dart';
 import '../../features/catalog/presentation/providers/catalog_provider.dart';
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
+import 'package:sobes/core/providers/settings_provider.dart';
 
 class AppProviders {
   // Этот метод собирает все зависимости и пульты в один список
@@ -23,6 +24,7 @@ class AppProviders {
       ChangeNotifierProvider(create: (_) => HistoryProvider()),
       ChangeNotifierProvider(create: (_) => CatalogProvider()),
       ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ChangeNotifierProvider(create: (_) => SettingsProvider()),
     ];
   }
 }

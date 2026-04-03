@@ -4,8 +4,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/providers/app_providers.dart'; 
+// 👇 Подключили провайдер настроек
+import 'core/providers/settings_provider.dart';
+
 import 'features/home/presentation/pages/home_page.dart';
-// 👇 ДОБАВИЛИ ДВА ИМПОРТА 👇
 import 'features/auth/presentation/pages/login_page.dart'; 
 import 'features/auth/presentation/providers/auth_provider.dart';
 
@@ -26,20 +28,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 👇 Слушаем настройки темы
+    final themeMode = context.watch<SettingsProvider>().themeMode;
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AI Interview',
-      theme: AppTheme.darkTheme,
+      themeMode: themeMode, // 👈 Теперь тема динамическая
+      theme: ThemeData.light(), // Если нет светлой темы, Flutter подставит стандартную
+      darkTheme: AppTheme.darkTheme,
       
-      // 👇 УМНЫЙ ЗАПУСК: Слушаем статус авторизации 👇
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
-          // Если пропуск (токен) есть -> летим на Главную
           if (authProvider.isAuthenticated) {
             return const HomePage();
-          } 
-          // Если пропуска нет -> показываем окно Входа
-          else {
+          } else {
             return const LoginPage();
           }
         },
