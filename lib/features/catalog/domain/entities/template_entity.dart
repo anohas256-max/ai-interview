@@ -5,7 +5,7 @@ class TemplateEntity {
   final String price;
   final String? imageUrl;
   final String categoryName;
-  final String mode; // 👈 ВОТ ОНО, САМОЕ ГЛАВНОЕ ПОЛЕ!
+  final String mode;
 
   TemplateEntity({
     required this.id,
@@ -19,13 +19,14 @@ class TemplateEntity {
 
   factory TemplateEntity.fromJson(Map<String, dynamic> json) {
     return TemplateEntity(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      price: json['price'] ?? '0.00',
-      imageUrl: json['image_url'], 
-      categoryName: json['category'] != null ? json['category']['name'] : '',
-      mode: json['mode'] ?? 'roleplay', // 👈 И ВОТ ЗДЕСЬ МЫ ЕГО ЧИТАЕМ
+      // 👇 Теперь мы безопасно парсим любые типы, даже если пришел null 👇
+      id: json['id'] as int? ?? 0,
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      price: json['price']?.toString() ?? '0.00',
+      imageUrl: json['image_url']?.toString(), 
+      categoryName: json['category'] != null ? json['category']['name']?.toString() ?? '' : '',
+      mode: json['mode']?.toString() ?? 'roleplay',
     );
   }
 }

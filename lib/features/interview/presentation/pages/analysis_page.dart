@@ -4,10 +4,10 @@ import '../providers/interview_provider.dart';
 import 'package:sobes/features/history/presentation/providers/history_provider.dart';
 import 'package:sobes/features/history/domain/entities/session_history.dart';
 import 'package:sobes/features/interview/presentation/pages/transcript_page.dart';
+import 'package:sobes/core/providers/settings_provider.dart';
 
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({super.key});
-
   @override
   State<AnalysisPage> createState() => _AnalysisPageState();
 }
@@ -16,32 +16,21 @@ class _AnalysisPageState extends State<AnalysisPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startAnalysis(); 
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startAnalysis());
   }
 
   void _startAnalysis() {
     final provider = context.read<InterviewProvider>();
-    
-    if (provider.analysisResult != null && provider.analysisResult!.performanceText != "Ошибка анализа") {
-      return; 
-    }
+    if (provider.analysisResult != null && provider.analysisResult!.performanceText != "Ошибка анализа") return; 
 
     provider.generateAnalysis(
       onSuccess: () {
-        // 👇 ИСПРАВЛЕННОЕ СОХРАНЕНИЕ В ИСТОРИЮ 👇
         if (provider.config != null) {
           final newHistory = SessionHistory(
             id: provider.config.hashCode.toString() + provider.messages.length.toString(),
-            date: DateTime.now(),
-            config: provider.config!,
-            messages: provider.messages,
-            isFinished: provider.isFinished,
-            isFailed: provider.isFailed,
-            analysisResult: provider.analysisResult,
+            date: DateTime.now(), config: provider.config!, messages: provider.messages,
+            isFinished: provider.isFinished, isFailed: provider.isFailed, analysisResult: provider.analysisResult,
           );
-          
           context.read<HistoryProvider>().saveSession(newHistory);
         }
       }
@@ -51,10 +40,13 @@ class _AnalysisPageState extends State<AnalysisPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InterviewProvider>();
+    final settings = context.watch<SettingsProvider>();
     final result = provider.analysisResult;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final cardColor = Theme.of(context).cardColor;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -62,19 +54,15 @@ class _AnalysisPageState extends State<AnalysisPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context), 
-                  ),
+                  IconButton(icon: Icon(Icons.close, color: textColor), onPressed: () => Navigator.pop(context)),
                   const SizedBox(width: 8),
-                  const Text('Session Analysis', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text(settings.t('analysis_title'), style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
-            
             Expanded(
               child: provider.isAnalyzing
-                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  ? Center(child: CircularProgressIndicator(color: Theme.of(context).primaryColor))
                   : result == null 
                       ? const SizedBox.shrink()
                       : result.performanceText == "Ошибка анализа"
@@ -84,15 +72,13 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                 children: [
                                   const Icon(Icons.error_outline, color: Colors.redAccent, size: 60),
                                   const SizedBox(height: 16),
-                                  const Text("Ошибка связи с сервером", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                  Text(settings.t('error_server'), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
-                                  const Text("Не удалось сгенерировать итоги.", style: TextStyle(color: Colors.white54, fontSize: 14)),
+                                  Text(settings.t('error_gen'), style: const TextStyle(color: Colors.grey, fontSize: 14)),
                                   const SizedBox(height: 32),
                                   ElevatedButton.icon(
-                                    onPressed: _startAnalysis, 
-                                    icon: const Icon(Icons.refresh, color: Colors.black),
-                                    label: const Text("Повторить попытку", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                                    onPressed: _startAnalysis, icon: const Icon(Icons.refresh),
+                                    label: Text(settings.t('retry_btn'), style: const TextStyle(fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
@@ -101,35 +87,30 @@ class _AnalysisPageState extends State<AnalysisPage> {
                               padding: const EdgeInsets.all(16),
                               child: Column(
                                 children: [
-                                  _buildOverallCard(result.score, result.performanceText),
+                                  _buildOverallCard(result.score, result.performanceText, settings, textColor, cardColor),
                                   const SizedBox(height: 16),
                                   Row(
                                     children: [
-                                      Expanded(child: _buildTimeCard(Icons.bolt, provider.avgResponseFormatted, "AVG. RESPONSE")),
+                                      Expanded(child: _buildTimeCard(Icons.bolt, provider.avgResponseFormatted, settings.t('avg_response'), textColor, cardColor)),
                                       const SizedBox(width: 16),
-                                      Expanded(child: _buildTimeCard(Icons.schedule, provider.totalTimeFormatted, "TOTAL TIME")),
+                                      Expanded(child: _buildTimeCard(Icons.schedule, provider.totalTimeFormatted, settings.t('total_time'), textColor, cardColor)),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
-                                  _buildListCard("Key Strengths", Icons.check_circle, Colors.green, const Color(0xFF1E2E22), result.strengths),
+                                  _buildListCard(settings.t('key_strengths'), Icons.check_circle, Colors.green, cardColor, result.strengths, textColor),
                                   const SizedBox(height: 16),
-                                  _buildListCard("Areas to Improve", Icons.cancel, Colors.redAccent, const Color(0xFF2E1C1C), result.weaknesses),
+                                  _buildListCard(settings.t('areas_improve'), Icons.cancel, Colors.redAccent, cardColor, result.weaknesses, textColor),
                                   const SizedBox(height: 24),
 
                                   if (result.smartRecap.isNotEmpty) ...[
-                                    const Align(
+                                    Align(
                                       alignment: Alignment.centerLeft,
-                                      child: Text("📚 Работа над ошибками", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                      child: Text(settings.t('work_mistakes'), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                                     ),
                                     const SizedBox(height: 16),
                                     ...result.smartRecap.map((recap) => Container(
-                                      margin: const EdgeInsets.only(bottom: 16),
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF121212),
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5),
-                                      ),
+                                      margin: const EdgeInsets.only(bottom: 16), padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5)),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
@@ -137,11 +118,11 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                             children: [
                                               const Icon(Icons.lightbulb_outline, color: Colors.blueAccent, size: 24),
                                               const SizedBox(width: 12),
-                                              Expanded(child: Text(recap.topic, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+                                              Expanded(child: Text(recap.topic, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold))),
                                             ],
                                           ),
                                           const SizedBox(height: 16),
-                                          Text(recap.explanation, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.4)),
+                                          Text(recap.explanation, style: const TextStyle(color: Colors.grey, fontSize: 15, height: 1.4)),
                                           const SizedBox(height: 16),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -151,7 +132,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                               children: [
                                                 const Icon(Icons.menu_book, color: Colors.blueAccent, size: 20),
                                                 const SizedBox(width: 12),
-                                                Expanded(child: Text("Что почитать: ${recap.recommendation}", style: const TextStyle(color: Colors.blueAccent, fontSize: 14, fontWeight: FontWeight.w600, height: 1.4))),
+                                                Expanded(child: Text("${settings.t('read_this')} ${recap.recommendation}", style: const TextStyle(color: Colors.blueAccent, fontSize: 14, fontWeight: FontWeight.w600, height: 1.4))),
                                               ],
                                             ),
                                           ),
@@ -162,39 +143,26 @@ class _AnalysisPageState extends State<AnalysisPage> {
                                   ],
 
                                   SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
+                                    width: double.infinity, height: 56,
                                     child: ElevatedButton.icon(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context, 
-                                          MaterialPageRoute(builder: (_) => const TranscriptPage())
-                                        );
-                                      },
-                                      icon: const Icon(Icons.description, color: Colors.white),
-                                      label: const Text("Смотреть весь чат", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF1C1C1E),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      ),
+                                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TranscriptPage())),
+                                      icon: const Icon(Icons.description),
+                                      label: Text(settings.t('view_chat'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(backgroundColor: cardColor, foregroundColor: textColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 2),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
                                   
                                   SizedBox(
-                                    width: double.infinity,
-                                    height: 56,
+                                    width: double.infinity, height: 56,
                                     child: ElevatedButton.icon(
                                       onPressed: () {
                                         provider.clearChat();
                                         Navigator.of(context).popUntil((route) => route.isFirst);
                                       },
-                                      icon: const Icon(Icons.exit_to_app, color: Colors.black),
-                                      label: const Text("Завершить и выйти", style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      ),
+                                      icon: const Icon(Icons.exit_to_app),
+                                      label: Text(settings.t('finish_exit'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                                     ),
                                   ),
                                   const SizedBox(height: 20),
@@ -208,59 +176,56 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
-  Widget _buildOverallCard(double score, String text) {
+  Widget _buildOverallCard(double score, String text, SettingsProvider settings, Color? textColor, Color cardColor) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.withOpacity(0.2))),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("OVERALL PERFORMANCE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+              Text(settings.t('overall_perf'), style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
               const SizedBox(height: 8),
-              Text(text, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+              Text(text, style: TextStyle(color: textColor, fontSize: 16)),
             ],
           ),
           Container(
             width: 60, height: 60, alignment: Alignment.center,
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white24, width: 2)),
-            child: Text(score.toString(), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.grey.withOpacity(0.5), width: 2)),
+            child: Text(score.toString(), style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold)),
           )
         ],
       ),
     );
   }
 
-  Widget _buildTimeCard(IconData icon, String value, String label) {
+  Widget _buildTimeCard(IconData icon, String value, String label, Color? textColor, Color cardColor) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.withOpacity(0.2))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(color: Color(0xFF2A2A2C), shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white70, size: 20),
+            decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.grey, size: 20),
           ),
           const SizedBox(height: 16),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(color: textColor, fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1)),
         ],
       ),
     );
   }
 
-  Widget _buildListCard(String title, IconData headerIcon, Color accentColor, Color bgColor, List<String> items) {
+  Widget _buildListCard(String title, IconData headerIcon, Color accentColor, Color cardColor, List<String> items, Color? textColor) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121212), borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5), 
-      ),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -268,7 +233,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
             children: [
               Icon(headerIcon, color: accentColor, size: 24),
               const SizedBox(width: 12),
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(title, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 20),
@@ -279,7 +244,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                   children: [
                     Icon(headerIcon == Icons.check_circle ? Icons.check : Icons.close, color: accentColor, size: 20),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(item, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4))),
+                    Expanded(child: Text(item, style: TextStyle(color: textColor, fontSize: 15, height: 1.4))),
                   ],
                 ),
               )),

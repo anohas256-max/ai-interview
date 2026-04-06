@@ -6,6 +6,8 @@ import 'package:sobes/features/profile/presentation/providers/profile_provider.d
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 import 'package:sobes/features/auth/presentation/pages/login_page.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
+// 👇 Добавили импорт Каталога
+import 'package:sobes/features/catalog/presentation/providers/catalog_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,6 +20,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _editName() {
     final authProvider = context.read<AuthProvider>();
+    final settings = context.read<SettingsProvider>();
     final initialName = authProvider.currentFirstName ?? "";
     TextEditingController controller = TextEditingController(text: initialName);
     
@@ -27,19 +30,19 @@ class _ProfilePageState extends State<ProfilePage> {
         builder: (context, setStateDialog) => AlertDialog(
           backgroundColor: Theme.of(context).cardColor, 
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Edit Display Name", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+          title: Text(settings.t('edit_name_title'), style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
           content: TextField(
             controller: controller,
             style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
             decoration: InputDecoration(
-              hintText: "How should we call you?",
+              hintText: settings.t('edit_name_hint'),
               hintStyle: const TextStyle(color: Colors.grey),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              child: Text(settings.t('cancel'), style: const TextStyle(color: Colors.grey)),
             ),
             TextButton(
               onPressed: authProvider.isLoading ? null : () async {
@@ -49,15 +52,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 
                 if (success && context.mounted) {
                   Navigator.pop(context);
-                  _showDummyAction("Имя успешно обновлено!");
+                  _showDummyAction(settings.t('snack_name_updated'));
                 } else if (context.mounted) {
                   setStateDialog(() {}); 
-                  _showDummyAction(authProvider.errorMessage ?? "Ошибка сервера");
+                  _showDummyAction(authProvider.errorMessage ?? settings.t('snack_server_error'));
                 }
               },
               child: authProvider.isLoading 
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
+                : Text(settings.t('save'), style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -67,6 +70,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _editAboutMe() {
     final currentBio = context.read<ProfileProvider>().userBio;
+    final settings = context.read<SettingsProvider>();
     TextEditingController controller = TextEditingController(text: currentBio);
     
     showDialog(
@@ -74,27 +78,27 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Edit Context", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+        title: Text(settings.t('about_me_title'), style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
         content: TextField(
           controller: controller,
           maxLines: 4, 
           style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-          decoration: const InputDecoration(
-            hintText: "Tell AI about your experience...",
-            hintStyle: TextStyle(color: Colors.grey),
+          decoration: InputDecoration(
+            hintText: settings.t('about_me_hint'),
+            hintStyle: const TextStyle(color: Colors.grey),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            child: Text(settings.t('cancel'), style: const TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
               context.read<ProfileProvider>().updateBio(controller.text);
               Navigator.pop(context);
             },
-            child: const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(settings.t('save'), style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -105,13 +109,13 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _obsNew = true;
   bool _obsConf = true;
 
- void _changePassword() {
+  void _changePassword() {
     final oldController = TextEditingController();
     final newController = TextEditingController();
     final confController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    final settings = context.read<SettingsProvider>();
 
-    // 👇 Эта переменная будет хранить ошибку и показывать её внутри окна
     String? errorMessage; 
 
     showDialog(
@@ -121,7 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
           backgroundColor: Theme.of(context).cardColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          title: Text("Change Password", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+          title: Text(settings.t('pass_setting'), style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -129,33 +133,31 @@ class _ProfilePageState extends State<ProfilePage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 👇 ЕСЛИ ЕСТЬ ОШИБКА — ПОКАЗЫВАЕМ ЕЁ КРАСНЫМ 👇
                   if (errorMessage != null) ...[
                     Text(errorMessage!, style: const TextStyle(color: Color(0xFFFF453A), fontSize: 13, fontWeight: FontWeight.bold)),
                     const Gap(12),
                   ],
-                  _buildDialogField("Old Password", oldController, _obsOld, () => setStateDialog(() => _obsOld = !_obsOld)),
+                  _buildDialogField(settings.t('old_pass'), oldController, _obsOld, () => setStateDialog(() => _obsOld = !_obsOld)),
                   const Gap(12),
-                  _buildDialogField("New Password", newController, _obsNew, () => setStateDialog(() => _obsNew = !_obsNew)),
+                  _buildDialogField(settings.t('new_pass'), newController, _obsNew, () => setStateDialog(() => _obsNew = !_obsNew)),
                   const Gap(12),
-                  _buildDialogField("Confirm Password", confController, _obsConf, () => setStateDialog(() => _obsConf = !_obsConf)),
+                  _buildDialogField(settings.t('confirm_pass'), confController, _obsConf, () => setStateDialog(() => _obsConf = !_obsConf)),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(settings.t('cancel'), style: const TextStyle(color: Colors.grey))),
             ElevatedButton(
               onPressed: () async {
-                // Перед каждой проверкой сбрасываем старую ошибку
                 setStateDialog(() => errorMessage = null); 
 
                 if (newController.text != confController.text) {
-                  setStateDialog(() => errorMessage = "Пароли не совпадают");
+                  setStateDialog(() => errorMessage = settings.t('pass_mismatch'));
                   return;
                 }
                 if (newController.text.length < 6) {
-                  setStateDialog(() => errorMessage = "Минимум 6 символов");
+                  setStateDialog(() => errorMessage = settings.t('short_pass'));
                   return;
                 }
 
@@ -164,14 +166,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 
                 if (context.mounted) {
                   if (errorFromServer == null) {
-                    Navigator.pop(context); // Успех! Закрываем окно
-                    _showDummyAction("Пароль успешно изменен!"); // Пишем уведомление внизу экрана
+                    Navigator.pop(context); 
+                    _showDummyAction(settings.t('snack_pass_updated')); 
                   } else {
-                    setStateDialog(() => errorMessage = errorFromServer); // Рисуем ошибку внутри окна
+                    setStateDialog(() => errorMessage = errorFromServer); 
                   }
                 }
               },
-              child: const Text("Update"),
+              child: Text(settings.t('update')),
             ),
           ],
         ),
@@ -222,12 +224,11 @@ class _ProfilePageState extends State<ProfilePage> {
         ? displayName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join()
         : "?";
 
-    // Адаптивные цвета для текущей темы
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
     final cardColor = Theme.of(context).cardColor;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👈 ТЕПЕРЬ ФОН МЕНЯЕТСЯ!
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -265,7 +266,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: () => _showDummyAction("Upload photo feature coming soon"),
+                      onTap: () => _showDummyAction(settings.t('snack_coming_soon')),
                       customBorder: const CircleBorder(),
                       child: Container(
                         padding: const EdgeInsets.all(6),
@@ -314,7 +315,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text("ABOUT ME / CONTEXT", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                            Text(settings.t('about_me_title'), style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                             Icon(Icons.edit_outlined, color: Colors.grey[600], size: 18),
                           ],
                         ),
@@ -338,17 +339,20 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     _buildSettingsTile(
                       icon: Icons.language,
-                      title: settings.currentLanguage == "English" ? "Language" : "Язык", // 👈 Оживили перевод заголовка
+                      title: settings.t('lang_setting'), 
                       trailingText: settings.currentLanguage,
                       textColor: textColor,
                       onTap: () {
-                        settings.setLanguage(settings.currentLanguage == "English" ? "Русский" : "English");
+                        // 👇 МАГИЯ ПРОИСХОДИТ ЗДЕСЬ 👇
+                        final newLang = settings.currentLanguage == "English" ? "Русский" : "English";
+                        settings.setLanguage(newLang); // Меняем локально
+                        context.read<CatalogProvider>().updateLanguage(newLang); // Дергаем сервер
                       },
                     ),
                     Divider(color: Colors.grey.withOpacity(0.2), height: 1),
                     _buildSettingsTile(
                       icon: Icons.lock_outline,
-                      title: "Change Password",
+                      title: settings.t('pass_setting'),
                       textColor: textColor,
                       onTap: _changePassword,
                     ),
@@ -373,13 +377,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         const Icon(Icons.dark_mode_outlined, color: Colors.grey, size: 20),
                         const Gap(12),
-                        Text("Dark Mode", style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w500)),
+                        Text(settings.t('dark_mode'), style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.w500)),
                       ],
                     ),
                     Switch(
                       value: settings.themeMode == ThemeMode.dark,
                       onChanged: (value) => settings.toggleTheme(),
-                      activeColor: Colors.black,
+                      activeColor: Colors.blueAccent,
                       activeTrackColor: Colors.grey[300],
                     ),
                   ],
@@ -402,9 +406,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     }
                   },
                   borderRadius: BorderRadius.circular(12),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                    child: Text("Sign Out", style: TextStyle(color: Color(0xFFFF453A), fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                    child: Text(settings.t('sign_out'), style: const TextStyle(color: Color(0xFFFF453A), fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ),

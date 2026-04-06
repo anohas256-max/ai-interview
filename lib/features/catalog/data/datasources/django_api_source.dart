@@ -4,15 +4,17 @@ import '../../domain/entities/template_entity.dart';
 class DjangoApiSource {
   final Dio _dio = Dio();
   
-  // ⚠️ ВАЖНО: 10.0.2.2 - это спец. адрес, чтобы Android Эмулятор видел localhost твоего компа. 
-  // Если тестируешь в Web/Windows - ставь 'http://127.0.0.1:8000/api'
- final String baseUrl = 'http://127.0.0.1:8000/api';
+  final String baseUrl = 'http://127.0.0.1:8000/api';
 
-  Future<List<TemplateEntity>> getTemplates() async {
+  // 👇 Принимаем язык 👇
+  Future<List<TemplateEntity>> getTemplates(String language) async {
     try {
-      final response = await _dio.get('$baseUrl/templates/');
+      // Превращаем 'English' в 'en'
+      final langCode = language == 'English' ? 'en' : 'ru';
       
-      // Наш Django возвращает пагинацию, поэтому данные лежат в ключе "results"
+      // 👇 Отправляем язык в Джанго 👇
+      final response = await _dio.get('$baseUrl/templates/?lang=$langCode');
+      
       final List<dynamic> results = response.data['results'];
       
       return results.map((json) => TemplateEntity.fromJson(json)).toList();

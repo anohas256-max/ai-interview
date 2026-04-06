@@ -7,29 +7,38 @@ class CatalogProvider extends ChangeNotifier {
   
   List<TemplateEntity> templates = [];
   bool isLoading = false;
+  String _currentLang = ''; // Храним текущий язык
+
+  // 👇 ДОБАВИЛИ КЛЮЧ СЮДА ЖЕ 👇
+  final String customOptRu = 'Свой вариант ✍️';
+  final String customOptEn = 'Custom ✍️';
 
   CatalogProvider() {
-    loadTemplates();
+    loadTemplates('Русский'); // Грузим при старте
   }
 
-  // 👇 СПИСКИ ДЛЯ ВЫПАДАЮЩИХ МЕНЮ 👇
-  // Берем только те, где mode == 'roleplay', и вытаскиваем только их названия
   List<String> get interviewRoles {
     final roles = templates.where((t) => t.mode == 'roleplay').map((t) => t.title).toList();
-    return roles.isNotEmpty ? roles : ['Загрузка...'];
+    return roles.isNotEmpty ? roles : ['Loading...'];
   }
 
-  // Берем только те, где mode == 'quiz'
   List<String> get quizTopics {
     final topics = templates.where((t) => t.mode == 'quiz').map((t) => t.title).toList();
-    return topics.isNotEmpty ? topics : ['Загрузка...'];
+    return topics.isNotEmpty ? topics : ['Loading...'];
   }
 
-  Future<void> loadTemplates() async {
+  // 👇 Умная загрузка (скачивает заново, только если язык реально изменился) 👇
+  Future<void> updateLanguage(String language) async {
+    if (_currentLang == language) return;
+    _currentLang = language;
+    await loadTemplates(language);
+  }
+
+  Future<void> loadTemplates(String language) async {
     isLoading = true;
     notifyListeners();
 
-    templates = await apiSource.getTemplates();
+    templates = await apiSource.getTemplates(language);
 
     isLoading = false;
     notifyListeners();

@@ -3,23 +3,21 @@ import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
 import 'package:sobes/features/interview/domain/entities/message_entity.dart';
+import 'package:sobes/core/providers/settings_provider.dart'; // 👈 Добавили настройки
 
 class TranscriptPage extends StatelessWidget {
   const TranscriptPage({super.key});
 
-  // Высчитываем, сколько секунд юзер думал над ответом
   String _calculateTimeTaken(List<MessageEntity> messages, int currentIndex) {
     if (currentIndex == 0) return "0s";
     
     final currentMsg = messages[currentIndex];
     final prevMsg = messages[currentIndex - 1];
     
-    // Считаем разницу во времени между вопросом HR и твоим ответом
     final diff = currentMsg.timestamp.difference(prevMsg.timestamp).inSeconds;
     return "${diff}s";
   }
 
-  // 👇 НАШ ПАРСЕР МАРКДАУНА ДЛЯ КРАСИВОГО ТЕКСТА 👇
   List<TextSpan> _parseMarkdown(String text, TextStyle baseStyle) {
     final List<TextSpan> spans = [];
     final RegExp exp = RegExp(r'(\*\*.*?\*\*|\*.*?\*)');
@@ -51,20 +49,21 @@ class TranscriptPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final messages = context.watch<InterviewProvider>().messages;
+    final settings = context.watch<SettingsProvider>(); // 👈 Настройки
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color; // 👈 Цвет текста
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👈 Адаптивный фон
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: textColor), // 👈 Адаптивная иконка
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Разбор диалога", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(settings.t('transcript_title'), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: false,
       ),
-      // 👇 ЦЕНТРИРУЕМ ДЛЯ WEB 👇
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -88,7 +87,7 @@ class TranscriptPage extends StatelessWidget {
 
               final timeTaken = _calculateTimeTaken(messages, index);
               final isWater = msg.isWater; 
-              final feedback = msg.feedback ?? "Оценка не получена";
+              final feedback = msg.feedback ?? settings.t('no_rating'); // 👈 Перевод
 
               return _buildTranscriptBubble(
                 context: context,
@@ -115,41 +114,43 @@ class TranscriptPage extends StatelessWidget {
     required bool isWater, 
     required String feedback
   }) {
-    // 👇 Умная ширина: 85% экрана, но не больше 800px 👇
     double screenWidth = MediaQuery.of(context).size.width;
     double maxBubbleWidth = screenWidth > 800 ? 800 * 0.85 : screenWidth * 0.85;
 
+    final cardColor = Theme.of(context).cardColor;
+    final textColor = Theme.of(context).textTheme.bodyLarge?.color;
+
     if (!isUser) {
       return Align(
-        alignment: Alignment.centerLeft, // Прижимаем ИИ влево
+        alignment: Alignment.centerLeft, 
         child: Container(
           margin: const EdgeInsets.only(bottom: 24),
           padding: const EdgeInsets.all(16),
-          constraints: BoxConstraints(maxWidth: maxBubbleWidth), // Ограничиваем ширину
-          decoration: const BoxDecoration(
-            color: Color(0xFF151515),
-            borderRadius: BorderRadius.only(
+          constraints: BoxConstraints(maxWidth: maxBubbleWidth), 
+          decoration: BoxDecoration(
+            color: cardColor, // 👈 Адаптивный фон
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(16), 
               topRight: Radius.circular(16), 
               bottomRight: Radius.circular(16)
             ),
+            border: Border.all(color: Colors.grey.withOpacity(0.1)),
           ),
-          // 👇 Теперь ИИ использует Markdown 👇
           child: SelectableText.rich(
-            TextSpan(children: _parseMarkdown(text, const TextStyle(color: Colors.white, fontSize: 15, height: 1.4))),
+            TextSpan(children: _parseMarkdown(text, TextStyle(color: textColor, fontSize: 15, height: 1.4))),
           ),
         ),
       );
     }
 
     return Align(
-      alignment: Alignment.centerRight, // Прижимаем юзера вправо
+      alignment: Alignment.centerRight, 
       child: Container(
         margin: const EdgeInsets.only(bottom: 24),
-        constraints: BoxConstraints(maxWidth: maxBubbleWidth), // Ограничиваем ширину
+        constraints: BoxConstraints(maxWidth: maxBubbleWidth), 
         decoration: BoxDecoration(
-          color: isWater ? const Color(0xFF2B1515) : const Color(0xFF1C1C1E),
-          border: isWater ? Border.all(color: Colors.red.withOpacity(0.5)) : Border.all(color: Colors.white.withOpacity(0.05)),
+          color: isWater ? Colors.red.withOpacity(0.05) : cardColor, // 👈 Адаптивный фон
+          border: isWater ? Border.all(color: Colors.red.withOpacity(0.5)) : Border.all(color: Colors.grey.withOpacity(0.2)),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(16), 
             topRight: Radius.circular(16), 
@@ -158,7 +159,7 @@ class TranscriptPage extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // Важно! Пузырь облегает контент
+          mainAxisSize: MainAxisSize.min, 
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 16, right: 16, top: 12),
@@ -180,11 +181,9 @@ class TranscriptPage extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              // Юзер тоже может копировать свой текст
-              child: SelectableText(text, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4)),
+              child: SelectableText(text, style: TextStyle(color: textColor, fontSize: 15, height: 1.4)), // 👈 Адаптивный текст
             ),
             
-            // 👇 МЫ УБРАЛИ width: double.infinity отсюда 👇
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
