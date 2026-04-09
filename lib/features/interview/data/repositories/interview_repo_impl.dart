@@ -1,13 +1,19 @@
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/session_config.dart';
 import '../../domain/repositories/interview_repository.dart';
-import '../datasources/gemini_api_source.dart';
+import '../../../catalog/data/datasources/django_api_source.dart'; 
 
 class InterviewRepoImpl implements InterviewRepository {
-  final GeminiApiSource apiSource;
+  final DjangoApiSource apiSource;
 
   InterviewRepoImpl({required this.apiSource});
 
+  @override
+  Future<Map<String, dynamic>> startSession(SessionConfig config) async {
+    return await apiSource.startSession(config);
+  }
+  
+  
   @override
   Future<AiResponseData> sendMessage({
     required String text,
@@ -16,7 +22,6 @@ class InterviewRepoImpl implements InterviewRepository {
     required String userLegend,
     required List<String> askedQuestions,
   }) async {
-    // Передаем все новые параметры в API
     return await apiSource.getAiResponse(
       userMessage: text,
       history: history,

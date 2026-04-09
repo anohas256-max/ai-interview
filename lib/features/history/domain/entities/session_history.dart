@@ -4,20 +4,13 @@ import 'package:sobes/features/interview/domain/entities/message_entity.dart';
 import 'package:sobes/features/interview/domain/entities/analysis_result.dart';
 
 class SessionHistory {
-  final String id;
+  // ID теперь может быть int (если пришел из базы Джанго) или String (если временный локальный)
+  final dynamic id; 
   final DateTime date;
-  
-  // 1. Настройки, с которыми стартовали
   final SessionConfig config;
-  
-  // 2. Вся переписка
   final List<MessageEntity> messages;
-  
-  // 3. Статусы завершения
   final bool isFinished;
   final bool isFailed;
-  
-  // 4. Результаты анализа
   final AnalysisResult? analysisResult;
 
   SessionHistory({
@@ -35,14 +28,11 @@ class SessionHistory {
   double get score => analysisResult?.score ?? 0.0;
   bool get hasAnalysis => analysisResult != null;
 
-  Map<String, dynamic> toMap() {
+  // Этот метод мы используем для отправки full_data_json в Django
+  Map<String, dynamic> toFullDataJson() {
     return {
-      'id': id,
-      'date': date.toIso8601String(),
       'config': config.toMap(),
       'messages': messages.map((m) => m.toMap()).toList(),
-      'isFinished': isFinished,
-      'isFailed': isFailed,
       'analysisResult': analysisResult != null ? {
           'score': analysisResult!.score,
           'performance_text': analysisResult!.performanceText,
@@ -57,15 +47,29 @@ class SessionHistory {
     };
   }
 
+  // А этот для локального кэша SharedPreferences (чтобы работало без интернета)
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id.toString(),
+      'date': date.toIso8601String(),
+      'full_data_json': toFullDataJson(), // 👈 Заворачиваем внутренности
+      'isFinished': isFinished,
+      'isFailed': isFailed,
+    };
+  }
+
   factory SessionHistory.fromMap(Map<String, dynamic> map) {
+    // Джанго присылает данные внутри ключа 'full_data_json'
+    final fullData = map['full_data_json'] ?? map; // Фолбэк для старых локальных сохранений
+
     return SessionHistory(
       id: map['id'] ?? '',
-      date: DateTime.parse(map['date']),
-      config: SessionConfig.fromMap(map['config']),
-      messages: List<MessageEntity>.from(map['messages']?.map((x) => MessageEntity.fromMap(x)) ?? []),
-      isFinished: map['isFinished'] ?? false,
-      isFailed: map['isFailed'] ?? false,
-      analysisResult: map['analysisResult'] != null ? AnalysisResult.fromJson(map['analysisResult']) : null,
+      date: map['created_at'] != null ? DateTime.parse(map['created_at']) : (map['date'] != null ? DateTime.parse(map['date']) : DateTime.now()),
+      config: SessionConfig.fromMap(fullData['config'] ?? {}),
+      messages: List<MessageEntity>.from(fullData['messages']?.map((x) => MessageEntity.fromMap(x)) ?? []),
+      isFinished: map['is_finished'] ?? map['isFinished'] ?? false,
+      isFailed: map['is_failed'] ?? map['isFailed'] ?? false,
+      analysisResult: fullData['analysisResult'] != null ? AnalysisResult.fromJson(fullData['analysisResult']) : null,
     );
   }
 
