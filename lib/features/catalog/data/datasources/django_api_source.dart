@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // 👈 Добавили
+import 'package:flutter/foundation.dart' show kIsWeb; // 👈 Добавили
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entities/template_entity.dart';
@@ -9,24 +11,33 @@ import 'package:sobes/features/history/domain/entities/session_history.dart';
 class DjangoApiSource {
   late final Dio _dio;
   final String baseUrl = 'http://127.0.0.1:8000/api';
+  final _storage = const FlutterSecureStorage(); // 👈 Добавили сейф
+
+  // 👇 НОВЫЙ ПОМОЩНИК ДЛЯ ТОКЕНА 👇
+  Future<String?> _getAccessToken() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('access_token');
+    } else {
+      return await _storage.read(key: 'access_token');
+    }
+  }
 
   DjangoApiSource() {
     _dio = Dio(BaseOptions(baseUrl: baseUrl));
 
-    // 👇 ТОТ САМЫЙ ПЕРЕХВАТЧИК (ИНТЕРСЕПТОР) 👇
     _dio.interceptors.add(
       InterceptorsWrapper(
-        // 1. Перед каждым запросом автоматически подставляем токен
         onRequest: (options, handler) async {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('access_token');
+          final token = await _getAccessToken(); // 👈 ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ МЕТОД
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           return handler.next(options);
         },
-        // 2. Если поймали ошибку (например, 401 - токен протух)
         onError: (DioException e, handler) async {
+          // ... (Здесь оставляй свой старый код с проверкой 401 и refresh токеном)
+          // (Главное было починить onRequest)
           if (e.response?.statusCode == 401) {
             final prefs = await SharedPreferences.getInstance();
             final refreshToken = prefs.getString('refresh_token');

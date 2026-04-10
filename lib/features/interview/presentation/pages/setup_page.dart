@@ -10,6 +10,7 @@ import 'package:sobes/features/profile/presentation/providers/profile_provider.d
 import 'package:sobes/features/catalog/presentation/providers/catalog_provider.dart';
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
+import 'package:sobes/core/widgets/balance_badge.dart';
 
 const List<String> availablePersonasKeys = ['persona_hr', 'persona_recruiter', 'persona_techlead', 'persona_fool', 'custom_opt'];
 const List<String> availableDifficultiesKeys = ['diff_junior', 'diff_middle', 'diff_senior', 'diff_progressive'];
@@ -34,6 +35,7 @@ class _SetupPageState extends State<SetupPage> {
   
   int questionLimit = 5;
   bool isCustomLimit = false;
+  bool isStartingSession = false;
 
   final TextEditingController _customRoleCtrl = TextEditingController();
   final TextEditingController _customPersonaCtrl = TextEditingController();
@@ -43,6 +45,7 @@ class _SetupPageState extends State<SetupPage> {
   Widget build(BuildContext context) {
     final catalogProvider = context.watch<CatalogProvider>();
     final settings = context.watch<SettingsProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
     final cardColor = Theme.of(context).cardColor;
     
@@ -58,6 +61,7 @@ class _SetupPageState extends State<SetupPage> {
         elevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back, color: textColor), onPressed: () => Navigator.pop(context)),
         title: Text(settings.t('setup_title'), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+        actions: const [BalanceBadge()],
       ),
       body: SafeArea(
         child: Column(
@@ -82,7 +86,7 @@ class _SetupPageState extends State<SetupPage> {
                       const Gap(8),
                       _buildCustomInlineInput(
                         controller: _customRoleCtrl, 
-                        hint: settings.t('custom_role_hint'), // 👈 ИСПРАВЛЕН ХИНТ
+                        hint: settings.t('custom_role_hint'),
                         maxLength: 50, 
                         cardColor: cardColor, 
                         textColor: textColor
@@ -104,7 +108,7 @@ class _SetupPageState extends State<SetupPage> {
                       const Gap(8),
                       _buildCustomInlineInput(
                         controller: _customPersonaCtrl, 
-                        hint: settings.t('custom_persona_hint'), // 👈 ИСПРАВЛЕН ХИНТ
+                        hint: settings.t('custom_persona_hint'),
                         maxLength: 50, 
                         cardColor: cardColor, 
                         textColor: textColor
@@ -135,6 +139,7 @@ class _SetupPageState extends State<SetupPage> {
 
                     AnimatedSize(
                       duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOutBack,
                       child: isEndlessMode ? const SizedBox.shrink() : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -147,29 +152,37 @@ class _SetupPageState extends State<SetupPage> {
                               final text = isCustomBtn ? settings.t('custom_limit') : "$limit";
                               
                               return Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      if (isCustomBtn) {
-                                        isCustomLimit = true;
-                                      } else {
-                                        isCustomLimit = false;
-                                        questionLimit = limit;
-                                      }
-                                    });
-                                  },
-                                  child: Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? Colors.blueAccent : cardColor, 
-                                      borderRadius: BorderRadius.circular(12), 
-                                      border: Border.all(color: Colors.grey.withOpacity(0.2))
-                                    ),
-                                    child: Text(
-                                      text, 
-                                      style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontWeight: FontWeight.bold, fontSize: 16)
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? Colors.blueAccent : cardColor, 
+                                    borderRadius: BorderRadius.circular(12), 
+                                    border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.2)),
+                                    boxShadow: isSelected ? [BoxShadow(color: Colors.blueAccent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () {
+                                        setState(() {
+                                          if (isCustomBtn) {
+                                            isCustomLimit = true;
+                                          } else {
+                                            isCustomLimit = false;
+                                            questionLimit = limit;
+                                          }
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          text, 
+                                          style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontWeight: FontWeight.bold, fontSize: 16)
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -186,7 +199,13 @@ class _SetupPageState extends State<SetupPage> {
                               textColor: textColor,
                               onChanged: (val) {
                                 int? num = int.tryParse(val);
-                                if (num != null && num > 0) questionLimit = num > 1000 ? 1000 : num;
+                                setState(() {
+                                  if (num != null && num > 0) {
+                                    questionLimit = num > 1000 ? 1000 : num;
+                                  } else {
+                                    questionLimit = 0;
+                                  }
+                                });
                               }
                             ),
                           ],
@@ -221,13 +240,26 @@ class _SetupPageState extends State<SetupPage> {
               ),
             ),
 
+            // 👇 КНОПКА ОПЛАТЫ С ПРАВИЛЬНЫМ ЦВЕТОМ И ТЕНЬЮ 👇
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.white,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
+                    elevation: 4,
+                    shadowColor: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: isDark ? Colors.transparent : Colors.grey.withOpacity(0.2)),
+                    ),
+                  ),
+                  onPressed: isStartingSession ? null : () async {
+                    setState(() => isStartingSession = true); 
+
                     String translatedRole = currentRoleKey == 'custom_opt' && _customRoleCtrl.text.isNotEmpty 
                         ? _customRoleCtrl.text 
                         : settings.t(currentRoleKey);
@@ -257,11 +289,53 @@ class _SetupPageState extends State<SetupPage> {
                       language: settings.currentLanguage,
                     );
                     
-                    context.read<InterviewProvider>().clearChat();
-                    context.read<InterviewProvider>().setConfig(config);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: translatedRole)));
+                    final result = await context.read<InterviewProvider>().startSession(config);
+
+                    if (!mounted) return;
+                    setState(() => isStartingSession = false);
+
+                    if (result['success']) {
+                      authProvider.updateBalance(result['new_balance'].toDouble());
+                      context.read<InterviewProvider>().clearChat();
+                      context.read<InterviewProvider>().setConfig(config);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: translatedRole)));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.white),
+                              const Gap(12),
+                              Text(result['error'] ?? 'Ошибка оплаты'),
+                            ],
+                          ),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        )
+                      );
+                    }
                   },
-                  child: Text(settings.t('start_btn'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: isStartingSession 
+                    ? const SizedBox(
+                        height: 24, 
+                        width: 24, 
+                        child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 2)
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(settings.t('start_btn'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Gap(8),
+                          Builder(builder: (context) {
+                            double currentCost = isEndlessMode ? 55.0 : (questionLimit * 0.5);
+                            String priceText = currentCost % 1 == 0 ? currentCost.toInt().toString() : currentCost.toString();
+                            
+                            Color priceColor = isDark ? Colors.amberAccent : Colors.orange.shade700;
+                                
+                            return Text("(Цена: $priceText ⚡️)", style: TextStyle(fontSize: 14, color: priceColor, fontWeight: FontWeight.bold));
+                          }),
+                        ],
+                      ),
                 ),
               ),
             ),
@@ -271,6 +345,8 @@ class _SetupPageState extends State<SetupPage> {
     );
   }
 
+  // --- Вспомогательные виджеты ---
+  
   Widget _buildLabel(String text) => Text(text, style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0));
 
   Widget _buildDropdown({required String value, required List<String> items, required Color cardColor, required Color? textColor, required SettingsProvider settings, required Function(String?) onChanged}) {
@@ -327,31 +403,39 @@ class _SetupPageState extends State<SetupPage> {
 
   Widget _buildFeedbackCard(String styleKey, bool isHarsh, Color cardColor, Color? textColor, SettingsProvider settings) {
     bool isSelected = feedbackStyleKey == styleKey;
-    return GestureDetector(
-      onTap: () => setState(() => feedbackStyleKey = styleKey),
-      child: Container(
-        padding: const EdgeInsets.all(12), 
-        height: 100,
-        decoration: BoxDecoration(
-          color: cardColor, 
-          borderRadius: BorderRadius.circular(16), 
-          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.2), width: isSelected ? 2 : 1)
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, 
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      height: 100,
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blueAccent.withOpacity(0.08) : cardColor, 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.2), width: isSelected ? 2 : 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => setState(() => feedbackStyleKey = styleKey),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Text(settings.t(styleKey), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)
-                ), 
-                if (isHarsh) Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))
-              ]
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(settings.t(styleKey), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)
+                    ), 
+                    if (isHarsh) Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle))
+                  ]
+                ),
+                const Gap(6), 
+                Text(settings.t('${styleKey}_desc'), style: const TextStyle(color: Colors.grey, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
             ),
-            const Gap(6), 
-            Text(settings.t('${styleKey}_desc'), style: const TextStyle(color: Colors.grey, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
-          ],
+          ),
         ),
       ),
     );

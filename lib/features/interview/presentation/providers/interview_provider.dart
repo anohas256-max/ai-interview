@@ -326,4 +326,9 @@ void loadSessionFromHistory(SessionHistory session) {
     await _tts.setSpeechRate(1.0); // 👈 Нормальная скорость! (было 0.5)
     await _tts.speak(text);
   }
+
+
+  Future<Map<String, dynamic>> startSession(SessionConfig config) async {
+    return await repository.startSession(config);
+  }
 }

@@ -11,6 +11,7 @@ class AuthProvider extends ChangeNotifier {
   String? currentUsername;
   String? currentEmail;
   String? currentFirstName; 
+  double coinsBalance = 0.0;
 
   int passwordAttempts = 0; // 👈 Внутри класса!
 
@@ -48,6 +49,8 @@ class AuthProvider extends ChangeNotifier {
       currentUsername = userData['username'];
       currentEmail = userData['email'];
       currentFirstName = userData['first_name']; 
+      // 👇 Парсим баланс монет (если его нет в ответе, ставим 0)
+      coinsBalance = (userData['coins_balance'] ?? 0).toDouble();
       notifyListeners();
     }
   }
@@ -132,4 +135,10 @@ class AuthProvider extends ChangeNotifier {
     currentFirstName = null; 
     notifyListeners();
   }
+
+void updateBalance(double newBalance) { // 👈 СТАЛО double
+    coinsBalance = newBalance;
+    notifyListeners();
+  }
+
 } 

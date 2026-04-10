@@ -8,6 +8,7 @@ import 'package:sobes/features/interview/presentation/providers/interview_provid
 import 'package:sobes/features/interview/presentation/pages/chat_page.dart';
 import 'package:sobes/features/interview/presentation/pages/mode_selection_page.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
+import 'package:sobes/core/widgets/balance_badge.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -30,11 +31,13 @@ class HomePage extends StatelessWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
       drawer: const HistoryDrawer(),
       appBar: AppBar(
+        
         backgroundColor: Colors.transparent, elevation: 0,
         leading: Builder(builder: (context) {
           return IconButton(icon: Icon(Icons.menu, color: textColor), onPressed: () => Scaffold.of(context).openDrawer());
         }),
         actions: [
+          const BalanceBadge(),
           Padding(
             padding: const EdgeInsets.only(right: 24), 
             child: GestureDetector( 
@@ -43,6 +46,7 @@ class HomePage extends StatelessWidget {
                 width: 40, height: 40,
                 decoration: BoxDecoration(color: Theme.of(context).cardColor, shape: BoxShape.circle, border: Border.all(color: Colors.grey.withOpacity(0.2))),
                 child: Center(child: Text(initials, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14))),
+              
               ),
             ),
           )

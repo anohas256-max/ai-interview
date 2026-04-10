@@ -9,6 +9,7 @@ import 'package:sobes/features/profile/presentation/providers/profile_provider.d
 import 'package:sobes/features/catalog/presentation/providers/catalog_provider.dart';
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
+import 'package:sobes/core/widgets/balance_badge.dart';
 
 const List<String> quizDifficultiesKeys = ['diff_junior', 'diff_middle', 'diff_senior'];
 const Map<String, int> quizLengthsKeys = { 'quiz_short': 5, 'quiz_medium': 10, 'quiz_long': 15 };
@@ -25,6 +26,8 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
   String selectedDifficultyKey = quizDifficultiesKeys[1]; 
   String selectedLengthKey = quizLengthsKeys.keys.elementAt(1);
   String communicationStyleKey = 'style_strict'; 
+  
+  bool isStartingSession = false; 
 
   final TextEditingController _customTopicCtrl = TextEditingController();
 
@@ -32,6 +35,7 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
   Widget build(BuildContext context) {
     final catalogProvider = context.watch<CatalogProvider>();
     final settings = context.watch<SettingsProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
     final cardColor = Theme.of(context).cardColor;
     
@@ -47,6 +51,7 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
         elevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back, color: textColor), onPressed: () => Navigator.pop(context)),
         title: Text(settings.t('setup_quiz_title'), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+        actions: const [BalanceBadge()],
       ),
       body: SafeArea(
         child: Column(
@@ -73,7 +78,7 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                         controller: _customTopicCtrl,
                         style: TextStyle(color: textColor),
                         decoration: InputDecoration(
-                          hintText: settings.t('custom_topic_hint'), // 👈 ИСПРАВЛЕН ХИНТ
+                          hintText: settings.t('custom_topic_hint'),
                           filled: true, 
                           fillColor: cardColor,
                           hintStyle: const TextStyle(color: Colors.grey),
@@ -129,13 +134,26 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
               ),
             ),
 
+            // 👇 КНОПКА ОПЛАТЫ С ПРАВИЛЬНЫМ ЦВЕТОМ И ТЕНЬЮ 👇
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? Colors.grey.shade800 : Colors.white,
+                    foregroundColor: isDark ? Colors.white : Colors.black87,
+                    elevation: 4,
+                    shadowColor: Colors.black.withOpacity(isDark ? 0.5 : 0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: isDark ? Colors.transparent : Colors.grey.withOpacity(0.2)),
+                    ),
+                  ),
+                  onPressed: isStartingSession ? null : () async {
+                    setState(() => isStartingSession = true); 
+
                     String finalTopic = currentTopicKey == 'custom_opt' && _customTopicCtrl.text.isNotEmpty 
                         ? _customTopicCtrl.text 
                         : settings.t(currentTopicKey);
@@ -145,12 +163,14 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                     
                     final profileProvider = context.read<ProfileProvider>();
                     final authProvider = context.read<AuthProvider>();
+                    
+                    final selectedLimit = quizLengthsKeys[selectedLengthKey]!;
 
                     final config = SessionConfig(
                       role: finalTopic,
                       persona: "Экзаменатор", 
                       difficulty: translatedDifficulty, 
-                      questionLimit: quizLengthsKeys[selectedLengthKey]!,  
+                      questionLimit: selectedLimit,  
                       feedbackStyle: translatedFeedback, 
                       includeLegend: false, 
                       isRoleplayMode: false, 
@@ -159,11 +179,54 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                       language: settings.currentLanguage,
                     );
 
-                    context.read<InterviewProvider>().clearChat();
-                    context.read<InterviewProvider>().setConfig(config);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: finalTopic)));
+                    final result = await context.read<InterviewProvider>().startSession(config);
+
+                    if (!mounted) return;
+                    setState(() => isStartingSession = false);
+
+                    if (result['success']) {
+                      authProvider.updateBalance(result['new_balance'].toDouble());
+                      context.read<InterviewProvider>().clearChat();
+                      context.read<InterviewProvider>().setConfig(config);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: finalTopic)));
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.white),
+                              const Gap(12),
+                              Text(result['error'] ?? 'Ошибка оплаты'),
+                            ],
+                          ),
+                          backgroundColor: Colors.redAccent,
+                          behavior: SnackBarBehavior.floating,
+                        )
+                      );
+                    }
                   },
-                  child: Text(settings.t('start_quiz_btn'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: isStartingSession 
+                    ? const SizedBox(
+                        height: 24, 
+                        width: 24, 
+                        child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 2)
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(settings.t('start_quiz_btn'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Gap(8),
+                          Builder(builder: (context) {
+                            int selectedLimit = quizLengthsKeys[selectedLengthKey]!;
+                            double currentCost = selectedLimit * 0.5;
+                            String priceText = currentCost % 1 == 0 ? currentCost.toInt().toString() : currentCost.toString();
+                            
+                            Color priceColor = isDark ? Colors.amberAccent : Colors.orange.shade700;
+                            
+                            return Text("(Цена: $priceText ⚡️)", style: TextStyle(fontSize: 14, color: priceColor, fontWeight: FontWeight.bold));
+                          }),
+                        ],
+                      ),
                 ),
               ),
             ),
@@ -195,24 +258,32 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
 
   Widget _buildStyleCard(String styleKey, Color cardColor, Color? textColor, SettingsProvider settings) {
     bool isSelected = communicationStyleKey == styleKey;
-    return GestureDetector(
-      onTap: () => setState(() => communicationStyleKey = styleKey),
-      child: Container(
-        padding: const EdgeInsets.all(12), 
-        height: 100,
-        decoration: BoxDecoration(
-          color: cardColor, 
-          borderRadius: BorderRadius.circular(16), 
-          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.2), width: isSelected ? 2 : 1)
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, 
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(settings.t(styleKey), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
-            const Gap(6), 
-            Text(settings.t('${styleKey}_desc'), style: const TextStyle(color: Colors.grey, fontSize: 11), maxLines: 2),
-          ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      height: 100,
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blueAccent.withOpacity(0.08) : cardColor, 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border.all(color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.2), width: isSelected ? 2 : 1)
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => setState(() => communicationStyleKey = styleKey),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(settings.t(styleKey), style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14)),
+                const Gap(6), 
+                Text(settings.t('${styleKey}_desc'), style: const TextStyle(color: Colors.grey, fontSize: 11), maxLines: 2),
+              ],
+            ),
+          ),
         ),
       ),
     );
