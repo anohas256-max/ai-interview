@@ -1,7 +1,7 @@
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/session_config.dart';
 import '../../domain/repositories/interview_repository.dart';
-import '../../../catalog/data/datasources/django_api_source.dart'; 
+import 'package:sobes/features/catalog/data/datasources/django_api_source.dart'; 
 
 class InterviewRepoImpl implements InterviewRepository {
   final DjangoApiSource apiSource;
@@ -13,7 +13,6 @@ class InterviewRepoImpl implements InterviewRepository {
     return await apiSource.startSession(config);
   }
   
-  
   @override
   Future<AiResponseData> sendMessage({
     required String text,
@@ -21,6 +20,7 @@ class InterviewRepoImpl implements InterviewRepository {
     required SessionConfig config,
     required String userLegend,
     required List<String> askedQuestions,
+    required int sessionId, // 👈 ПРИНИМАЕМ ЕГО ЗДЕСЬ
   }) async {
     return await apiSource.getAiResponse(
       userMessage: text,
@@ -28,6 +28,7 @@ class InterviewRepoImpl implements InterviewRepository {
       config: config,
       userLegend: userLegend,
       askedQuestions: askedQuestions,
+      sessionId: sessionId, // 👈 И ПЕРЕДАЕМ В API ЗДЕСЬ
     );
   }
 }

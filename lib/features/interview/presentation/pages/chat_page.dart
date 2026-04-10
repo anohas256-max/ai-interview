@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sobes/features/interview/presentation/pages/analysis_page.dart';
 import 'package:sobes/features/interview/presentation/widgets/chat_bubble.dart';
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
-import 'package:sobes/core/providers/settings_provider.dart'; // 👈 Добавили настройки
+import 'package:sobes/core/providers/settings_provider.dart'; 
 import '../widgets/audio_recorder_btn.dart';
 
 class ChatPage extends StatefulWidget {
@@ -62,18 +62,17 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InterviewProvider>();
-    final settings = context.watch<SettingsProvider>(); // 👈 Настройки
+    final settings = context.watch<SettingsProvider>(); 
     final messages = provider.messages;
     final isLoading = provider.isLoading;
 
-    // 👈 Адаптивные цвета
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
     final cardColor = Theme.of(context).cardColor;
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // 👈 Адаптивный фон
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
       body: Center( 
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800), 
@@ -90,7 +89,7 @@ class _ChatPageState extends State<ChatPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
-                            icon: Icon(Icons.arrow_back, color: textColor), // 👈 Адаптивная иконка
+                            icon: Icon(Icons.arrow_back, color: textColor), 
                             onPressed: () {
                               context.read<InterviewProvider>().pauseTimer();
                               Navigator.pop(context);
@@ -99,7 +98,7 @@ class _ChatPageState extends State<ChatPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1), // 👈 Сделали полупрозрачным для светлой темы
+                              color: Colors.red.withOpacity(0.1), 
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: Colors.red.withOpacity(0.3)),
                             ),
@@ -147,25 +146,36 @@ class _ChatPageState extends State<ChatPage> {
                       itemCount: messages.length + (isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
                         
+                        // 👇 КРАСИВЫЙ ИНДИКАТОР ОЖИДАНИЯ 👇
                         if (index == messages.length && isLoading) {
                           return Align(
                             alignment: Alignment.centerLeft,
                             child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              margin: const EdgeInsets.only(top: 8, bottom: 8, right: 60),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                               decoration: BoxDecoration(
-                                color: cardColor, // 👈 Адаптивный цвет карточки
+                                color: cardColor,
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
-                                  bottomRight: Radius.circular(16),
+                                  topLeft: Radius.circular(20),
+                                  topRight: Radius.circular(20),
+                                  bottomRight: Radius.circular(20),
                                 ),
-                                border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                                border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.blueAccent.withOpacity(0.1), blurRadius: 10)
+                                ],
                               ),
-                              child: const SizedBox(
-                                width: 20, 
-                                height: 20, 
-                                child: CircularProgressIndicator(color: Colors.grey, strokeWidth: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(
+                                    width: 16, 
+                                    height: 16, 
+                                    child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 2.5),
+                                  ),
+                                  const Gap(12),
+                                  Text("Интервьюер печатает...", style: TextStyle(color: textColor, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic)),
+                                ],
                               ),
                             ),
                           );
@@ -205,8 +215,8 @@ class _ChatPageState extends State<ChatPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor, // 👈 Адаптивный фон панели
-                      border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))), // 👈 Адаптивная линия
+                      color: Theme.of(context).scaffoldBackgroundColor, 
+                      border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))), 
                     ),
                     child: SafeArea(
                       child: (provider.isFailed || provider.isFinished) 
@@ -256,7 +266,7 @@ class _ChatPageState extends State<ChatPage> {
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: cardColor, // 👈 Адаптивный цвет поля
+                                    color: cardColor, 
                                     borderRadius: BorderRadius.circular(26),
                                     border: Border.all(color: Colors.grey.withOpacity(0.2)),
                                   ),
@@ -268,7 +278,7 @@ class _ChatPageState extends State<ChatPage> {
                                           minLines: 1,
                                           maxLines: 4,
                                           maxLength: provider.isLegendPhase ? 1000 : 5000, 
-                                          style: TextStyle(color: textColor), // 👈 Адаптивный цвет текста
+                                          style: TextStyle(color: textColor), 
                                           enabled: !isLoading, 
                                           decoration: InputDecoration(
                                             hintText: provider.isLegendPhase ? settings.t('legend_hint') : (isLoading ? settings.t('ai_typing') : settings.t('your_answer')),
@@ -284,7 +294,7 @@ class _ChatPageState extends State<ChatPage> {
                                         child: IconButton(
                                           icon: const Icon(Icons.arrow_upward, color: Colors.white),
                                           style: IconButton.styleFrom(
-                                            backgroundColor: isLoading ? Colors.transparent : Colors.blueAccent, // 👈 Сделали синим для обеих тем
+                                            backgroundColor: isLoading ? Colors.transparent : Colors.blueAccent, 
                                             padding: const EdgeInsets.all(8),
                                           ),
                                           onPressed: isLoading ? null : _sendMessage,

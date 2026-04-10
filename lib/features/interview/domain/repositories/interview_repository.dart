@@ -3,7 +3,6 @@ import '../entities/session_config.dart';
 import 'package:sobes/features/catalog/data/datasources/django_api_source.dart';
 
 abstract class InterviewRepository {
-  // Просто объявляем, что такой метод есть (без тела)
   Future<Map<String, dynamic>> startSession(SessionConfig config);
 
   Future<AiResponseData> sendMessage({
@@ -12,5 +11,6 @@ abstract class InterviewRepository {
     required SessionConfig config,
     required String userLegend,
     required List<String> askedQuestions,
+    required int sessionId, // 👈 ДОБАВИЛИ ВОТ ЭТУ СТРОКУ
   });
 }

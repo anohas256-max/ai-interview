@@ -289,17 +289,22 @@ class _SetupPageState extends State<SetupPage> {
                       language: settings.currentLanguage,
                     );
                     
+                    await context.read<InterviewProvider>().clearChat();
+                    context.read<InterviewProvider>().setConfig(config);
+                    // 2. ПОТОМ стучимся на сервер и запоминаем ID
                     final result = await context.read<InterviewProvider>().startSession(config);
 
                     if (!mounted) return;
                     setState(() => isStartingSession = false);
 
                     if (result['success']) {
+                      // 3. Обновляем баланс и заходим в чат (ID уже безопасно сохранен)
                       authProvider.updateBalance(result['new_balance'].toDouble());
-                      context.read<InterviewProvider>().clearChat();
-                      context.read<InterviewProvider>().setConfig(config);
                       Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: translatedRole)));
                     } else {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      
+                      // 👇 2. ПОКАЗЫВАЕМ НОВУЮ РОВНО НА 2 СЕКУНДЫ 👇
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Row(
@@ -311,6 +316,7 @@ class _SetupPageState extends State<SetupPage> {
                           ),
                           backgroundColor: Colors.redAccent,
                           behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 2), // 👈 ЖЕСТКИЙ ЛИМИТ ВРЕМЕНИ
                         )
                       );
                     }

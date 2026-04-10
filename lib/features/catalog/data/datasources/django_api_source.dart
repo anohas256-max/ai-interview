@@ -103,11 +103,13 @@ class DjangoApiSource {
     required SessionConfig config,
     required String userLegend, 
     required List<String> askedQuestions,
+    required int sessionId, // 👈 ДОБАВИЛИ ЭТО
   }) async {
     try {
       final response = await _dio.post(
         '/chat/',
         data: {
+          "sessionId": sessionId, // 👈 ОТПРАВЛЯЕМ НА СЕРВЕР
           "userMessage": userMessage,
           "history": history.map((m) => {"isUser": m.isUser, "text": m.text}).toList(),
           "config": config.toMap(),

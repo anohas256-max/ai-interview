@@ -179,6 +179,9 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                       language: settings.currentLanguage,
                     );
 
+                    await context.read<InterviewProvider>().clearChat();
+                    context.read<InterviewProvider>().setConfig(config);
+
                     final result = await context.read<InterviewProvider>().startSession(config);
 
                     if (!mounted) return;
@@ -186,10 +189,11 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
 
                     if (result['success']) {
                       authProvider.updateBalance(result['new_balance'].toDouble());
-                      context.read<InterviewProvider>().clearChat();
-                      context.read<InterviewProvider>().setConfig(config);
                       Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: finalTopic)));
                     } else {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      
+                      // 👇 2. ПОКАЗЫВАЕМ НОВУЮ РОВНО НА 2 СЕКУНДЫ 👇
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Row(
@@ -201,6 +205,7 @@ class _SetupQuizPageState extends State<SetupQuizPage> {
                           ),
                           backgroundColor: Colors.redAccent,
                           behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 2), // 👈 ЖЕСТКИЙ ЛИМИТ ВРЕМЕНИ
                         )
                       );
                     }
