@@ -47,7 +47,7 @@ class DjangoApiSource {
                 // Пытаемся получить новый access_token
                 final refreshDio = Dio(); 
                 final response = await refreshDio.post(
-                  'http://127.0.0.1:8000/api/token/refresh/', // Стандартный URL SimpleJWT
+                  'http://127.0.0.1:8000/api/auth/jwt/refresh/', // Стандартный URL SimpleJWT
                   data: {'refresh': refreshToken},
                 );
 
@@ -104,6 +104,8 @@ class DjangoApiSource {
     required String userLegend, 
     required List<String> askedQuestions,
     required int sessionId, // 👈 ДОБАВИЛИ ЭТО
+    bool isAnalysis = false,
+    bool isLimitReached = false, // 👈 ДОБАВИЛИ ФЛАГ ЛИМИТА
   }) async {
     try {
       final response = await _dio.post(
@@ -115,6 +117,8 @@ class DjangoApiSource {
           "config": config.toMap(),
           "userLegend": userLegend,
           "askedQuestions": askedQuestions,
+          "isAnalysis": isAnalysis,
+          "isLimitReached": isLimitReached, // 👈 ОТПРАВЛЯЕМ НА СЕРВЕР
         },
       );
       return AiResponseData.fromJson(response.data);

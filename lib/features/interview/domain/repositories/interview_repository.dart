@@ -12,5 +12,7 @@ abstract class InterviewRepository {
     required String userLegend,
     required List<String> askedQuestions,
     required int sessionId, // 👈 ДОБАВИЛИ ВОТ ЭТУ СТРОКУ
+    bool isAnalysis = false,
+    bool isLimitReached = false, // 👈 ДОБАВИЛИ ФЛАГ ЛИМИТА
   });
 }

@@ -80,14 +80,14 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               Column(
                 children: [
-                  // --- ШАПКА ЧАТА ---
+                  // 👇 --- ИДЕАЛЬНАЯ ШАПКА ЧАТА --- 👇
                   SafeArea(
                     bottom: false,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // 1. Кнопка "Назад"
                           IconButton(
                             icon: Icon(Icons.arrow_back, color: textColor), 
                             onPressed: () {
@@ -95,22 +95,10 @@ class _ChatPageState extends State<ChatPage> {
                               Navigator.pop(context);
                             },
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1), 
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.red.withOpacity(0.3)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.circle, size: 8, color: Colors.red),
-                                const Gap(8),
-                                Text(settings.t('live'), style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
                           
+                          const Spacer(), // 2. Расталкиваем элементы по краям
+                          
+                          // 3. Кнопка звука (теперь она прижата вправо)
                           IconButton(
                             icon: Icon(
                               provider.isVoiceEnabled ? Icons.volume_up : Icons.volume_off,
@@ -118,7 +106,10 @@ class _ChatPageState extends State<ChatPage> {
                             ),
                             onPressed: () => provider.toggleVoice(),
                           ),
+                          
+                          const Gap(8), // Небольшой отступ между звуком и кнопкой END
 
+                          // 4. Кнопка завершения с ПЕРЕВОДОМ
                           TextButton(
                             onPressed: () {
                               Navigator.push(
@@ -131,12 +122,16 @@ class _ChatPageState extends State<ChatPage> {
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), 
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
                             ),
-                            child: Text(settings.t('end'), style: const TextStyle(color: Color(0xFFFF453A), fontWeight: FontWeight.bold, fontSize: 16)), 
+                            child: Text(
+                              settings.t('end'), // 👈 Перевод работает здесь
+                              style: const TextStyle(color: Color(0xFFFF453A), fontWeight: FontWeight.bold, fontSize: 16)
+                            ), 
                           ),
                         ],
                       ),
                     ),
                   ),
+                  // 👆 --- КОНЕЦ ШАПКИ --- 👆
 
                   // --- СПИСОК СООБЩЕНИЙ ---
                   Expanded(
@@ -146,7 +141,6 @@ class _ChatPageState extends State<ChatPage> {
                       itemCount: messages.length + (isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
                         
-                        // 👇 КРАСИВЫЙ ИНДИКАТОР ОЖИДАНИЯ 👇
                         if (index == messages.length && isLoading) {
                           return Align(
                             alignment: Alignment.centerLeft,
@@ -174,7 +168,7 @@ class _ChatPageState extends State<ChatPage> {
                                     child: CircularProgressIndicator(color: Colors.blueAccent, strokeWidth: 2.5),
                                   ),
                                   const Gap(12),
-                                  Text("Интервьюер печатает...", style: TextStyle(color: textColor, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic)),
+                                  Text(settings.t('ai_typing'), style: TextStyle(color: textColor, fontWeight: FontWeight.w500, fontStyle: FontStyle.italic)),
                                 ],
                               ),
                             ),

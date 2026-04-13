@@ -21,6 +21,8 @@ class InterviewRepoImpl implements InterviewRepository {
     required String userLegend,
     required List<String> askedQuestions,
     required int sessionId, // 👈 ПРИНИМАЕМ ЕГО ЗДЕСЬ
+    bool isAnalysis = false,
+    bool isLimitReached = false, // 👈 ПРИНИМАЕМ ФЛАГ ЛИМИТА
   }) async {
     return await apiSource.getAiResponse(
       userMessage: text,
@@ -29,6 +31,8 @@ class InterviewRepoImpl implements InterviewRepository {
       userLegend: userLegend,
       askedQuestions: askedQuestions,
       sessionId: sessionId, // 👈 И ПЕРЕДАЕМ В API ЗДЕСЬ
+      isAnalysis: isAnalysis,
+      isLimitReached: isLimitReached, // 👈 ПЕРЕДАЕМ В API ЗДЕСЬ
     );
   }
 }

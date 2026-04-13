@@ -37,6 +37,23 @@ class _AnalysisPageState extends State<AnalysisPage> {
     );
   }
 
+  // 👇 НОВАЯ ФУНКЦИЯ: Динамический перевод оценки по баллам 👇
+  String _getPerformanceLabel(double score, SettingsProvider settings) {
+    if (score >= 9.0) return settings.t('perf_excellent');
+    if (score >= 7.0) return settings.t('perf_good');
+    if (score >= 5.0) return settings.t('perf_average');
+    return settings.t('perf_poor');
+  }
+
+  // 👇 НОВАЯ ФУНКЦИЯ: Форматирование времени с учетом языка 👇
+  String _formatTime(String rawTime, SettingsProvider settings) {
+    bool isEng = settings.currentLanguage == 'English';
+    if (isEng) return rawTime; // Для инглиша оставляем "12m" и "10s"
+    
+    // Для русского меняем буквы
+    return rawTime.replaceAll('m', 'м').replaceAll('s', 'с');
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InterviewProvider>();
@@ -87,13 +104,16 @@ class _AnalysisPageState extends State<AnalysisPage> {
                               padding: const EdgeInsets.all(16),
                               child: Column(
                                 children: [
-                                  _buildOverallCard(result.score, result.performanceText, settings, textColor, cardColor),
+                                  // 👇 ЗДЕСЬ ТЕПЕРЬ ИСПОЛЬЗУЕТСЯ ДИНАМИЧЕСКИЙ ПЕРЕВОД ОЦЕНКИ 👇
+                                  _buildOverallCard(result.score, _getPerformanceLabel(result.score, settings), settings, textColor, cardColor),
                                   const SizedBox(height: 16),
                                   Row(
                                     children: [
-                                      Expanded(child: _buildTimeCard(Icons.bolt, provider.avgResponseFormatted, settings.t('avg_response'), textColor, cardColor)),
+                                      // 👇 ЗДЕСЬ ТЕПЕРЬ ПЕРЕВОДЯТСЯ СЕКУНДЫ 👇
+                                      Expanded(child: _buildTimeCard(Icons.bolt, _formatTime(provider.avgResponseFormatted, settings), settings.t('avg_response'), textColor, cardColor)),
                                       const SizedBox(width: 16),
-                                      Expanded(child: _buildTimeCard(Icons.schedule, provider.totalTimeFormatted, settings.t('total_time'), textColor, cardColor)),
+                                      // 👇 И МИНУТЫ 👇
+                                      Expanded(child: _buildTimeCard(Icons.schedule, _formatTime(provider.totalTimeFormatted, settings), settings.t('total_time'), textColor, cardColor)),
                                     ],
                                   ),
                                   const SizedBox(height: 16),

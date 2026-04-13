@@ -153,17 +153,14 @@ class InterviewProvider extends ChangeNotifier {
     _sessionStartTime = DateTime.now();
     notifyListeners();
     try {
-      String prompt = _config!.includeLegend
-          ? "[СИСТЕМНОЕ: Поздоровайся, обратившись по имени (${_config!.userName}), представься в своей роли и попроси кандидата коротко рассказать о себе.]"
-          : "[СИСТЕМНОЕ: Поздоровайся (${_config!.userName}), представься и сразу задай первый сложный профильный вопрос для роли '${_config!.role}'.]";
-
+      // 🛑 Отправляем чистую команду Джанго. В историю это НЕ запишется!
       final aiData = await repository.sendMessage(
-        text: prompt,
+        text: "START_INTERVIEW", 
         history: [],
         config: _config!,
         userLegend: _userLegend,
         askedQuestions: _askedQuestions,
-        sessionId: _currentSessionId ?? 0, // Передаем ID
+        sessionId: _currentSessionId ?? 0,
       );
       _lastAiResponseTime = DateTime.now();
       _processAiResponse(aiData.text);
@@ -173,7 +170,6 @@ class InterviewProvider extends ChangeNotifier {
     }
   }
 
-  // 👇 ОБНОВЛЕННЫЙ SENDMESSAGE (Передаем ID) 👇
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || _config == null || _isLoading) return;
 
@@ -189,20 +185,18 @@ class InterviewProvider extends ChangeNotifier {
       int techAnswersCount = _config!.includeLegend
           ? _messages.where((m) => m.isUser).length - 1
           : _messages.where((m) => m.isUser).length;
-      String textToSend = text;
 
-      if (!_config!.isEndlessMode && techAnswersCount >= _config!.questionLimit) {
-        textToSend =
-            "$text\n\n[СИСТЕМНОЕ АБСОЛЮТНОЕ ПРАВИЛО: ЛИМИТ ВОПРОСОВ ИСЧЕРПАН. Задавать новые вопросы КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО. Оцени этот ответ пользователя, коротко попрощайся с ним и в самом конце сообщения ОБЯЗАТЕЛЬНО добавь тег [END].]";
-      }
+      // 🛑 Вычисляем флаг лимита
+      bool limitReached = !_config!.isEndlessMode && techAnswersCount >= _config!.questionLimit;
 
       final aiData = await repository.sendMessage(
-        text: textToSend,
+        text: text, // 👈 ШЛЕМ ТОЛЬКО ЧИСТЫЙ ТЕКСТ ЮЗЕРА! НИКАКИХ ПРИПИСОК!
         history: _messages.length > 4 ? _messages.sublist(_messages.length - 4) : _messages,
         config: _config!,
         userLegend: _userLegend,
         askedQuestions: _askedQuestions,
-        sessionId: _currentSessionId ?? 0, // Передаем ID
+        sessionId: _currentSessionId ?? 0,
+        isLimitReached: limitReached, // 👈 ПЕРЕДАЕМ ФЛАГ ДЖАНГО
       );
       _lastAiResponseTime = DateTime.now();
       _processAiResponse(aiData.text);
@@ -253,7 +247,23 @@ class InterviewProvider extends ChangeNotifier {
         }
       }).join('\n\n');
 
-      String analysisPrompt = """Проанализируй транскрипцию собеседования..."""; // Сократил для краткости
+     String analysisPrompt = """Проанализируй транскрипцию собеседования. Верни ответ СТРОГО в формате JSON. Никакого текста до или после. Никаких маркдаун-блоков вроде ```json. Только чистый JSON-объект.
+      Шаблон: 
+      {
+        "score": 7.5, 
+        "performance_text": "Good", 
+        "strengths": ["Пункт 1"], 
+        "weaknesses": ["Ошибка 1"],
+        "smart_recap": [
+          {"topic": "Тема", "explanation": "Объяснение", "recommendation": "Что читать"}
+        ],
+        "evaluations": [
+          {"id": 1, "is_water": false, "feedback": "Текст."}
+        ]
+      }
+      ВАЖНО: Массив 'evaluations' должен содержать ровно $userMsgCount элементов.
+      ТРАНСКРИПЦИЯ: 
+      $fullChat""";
 
       final aiData = await repository.sendMessage(
         text: analysisPrompt,
@@ -262,6 +272,7 @@ class InterviewProvider extends ChangeNotifier {
         userLegend: _userLegend,
         askedQuestions: [],
         sessionId: _currentSessionId ?? 0,
+        isAnalysis: true, 
       );
       String rawResponse = aiData.text;
 

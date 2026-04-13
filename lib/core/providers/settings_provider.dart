@@ -67,6 +67,10 @@ class SettingsProvider extends ChangeNotifier {
       'read_this': 'What to read:', 
       'view_chat': 'View Full Chat', 
       'finish_exit': 'Finish & Exit',
+      'perf_excellent': 'Excellent',
+      'perf_good': 'Good',
+      'perf_average': 'Average',
+      'perf_poor': 'Needs Work',
       
       // Mode Selection
       'mode_title': 'Select Format',
@@ -196,6 +200,10 @@ class SettingsProvider extends ChangeNotifier {
       'read_this': 'Что почитать:', 
       'view_chat': 'Смотреть весь чат', 
       'finish_exit': 'Завершить и выйти',
+      'perf_excellent': 'Отлично',
+      'perf_good': 'Хорошо',
+      'perf_average': 'Удовлетворительно',
+      'perf_poor': 'Нужно подтянуть',
 
       // Mode Selection
       'mode_title': 'Выбор формата',
@@ -231,7 +239,7 @@ class SettingsProvider extends ChangeNotifier {
 
       // Chat & Transcript Page
       'live': 'Live',
-      'end': 'END',
+      'end': 'завершить',
       'ai_typing': 'AI печатает...',
       'your_answer': 'Ваш ответ...',
       'legend_hint': 'Кратко расскажите о себе...',
