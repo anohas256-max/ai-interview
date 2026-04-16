@@ -8,6 +8,7 @@ import 'package:sobes/features/auth/presentation/pages/login_page.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
 // 👇 Добавили импорт Каталога
 import 'package:sobes/features/catalog/presentation/providers/catalog_provider.dart';
+import 'package:sobes/features/history/presentation/providers/history_provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -396,7 +397,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () async {
+                    // 👇 СНАЧАЛА ОЧИЩАЕМ ИСТОРИЮ (ЧТОБЫ ДРУГОЙ ЮЗЕР ЕЕ НЕ УВИДЕЛ) 👇
+                    context.read<HistoryProvider>().clear(); 
+                    
                     await context.read<AuthProvider>().logout();
+                    
                     if (context.mounted) {
                       Navigator.pushAndRemoveUntil(
                         context,

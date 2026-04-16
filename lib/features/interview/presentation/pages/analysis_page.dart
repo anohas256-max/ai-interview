@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/interview_provider.dart';
 import 'package:sobes/features/history/presentation/providers/history_provider.dart';
-import 'package:sobes/features/history/domain/entities/session_history.dart';
 import 'package:sobes/features/interview/presentation/pages/transcript_page.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
 
@@ -25,19 +24,13 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
     provider.generateAnalysis(
       onSuccess: () {
-        if (provider.config != null) {
-          final newHistory = SessionHistory(
-            id: provider.config.hashCode.toString() + provider.messages.length.toString(),
-            date: DateTime.now(), config: provider.config!, messages: provider.messages,
-            isFinished: provider.isFinished, isFailed: provider.isFailed, analysisResult: provider.analysisResult,
-          );
-          context.read<HistoryProvider>().saveSession(newHistory);
-        }
+        // 👇 БОЛЬШЕ НИКАКОГО РУЧНОГО СОХРАНЕНИЯ! ПРОСТО ОБНОВЛЯЕМ СПИСОК 👇
+        context.read<HistoryProvider>().loadHistory();
       }
     );
   }
 
-  // 👇 НОВАЯ ФУНКЦИЯ: Динамический перевод оценки по баллам 👇
+  // 👇 ДИНАМИЧЕСКИЙ ПЕРЕВОД ОЦЕНКИ 👇
   String _getPerformanceLabel(double score, SettingsProvider settings) {
     if (score >= 9.0) return settings.t('perf_excellent');
     if (score >= 7.0) return settings.t('perf_good');
@@ -45,12 +38,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
     return settings.t('perf_poor');
   }
 
-  // 👇 НОВАЯ ФУНКЦИЯ: Форматирование времени с учетом языка 👇
+  // 👇 ФОРМАТИРОВАНИЕ ВРЕМЕНИ С УЧЕТОМ ЯЗЫКА 👇
   String _formatTime(String rawTime, SettingsProvider settings) {
     bool isEng = settings.currentLanguage == 'English';
-    if (isEng) return rawTime; // Для инглиша оставляем "12m" и "10s"
-    
-    // Для русского меняем буквы
+    if (isEng) return rawTime; 
     return rawTime.replaceAll('m', 'м').replaceAll('s', 'с');
   }
 
@@ -104,15 +95,12 @@ class _AnalysisPageState extends State<AnalysisPage> {
                               padding: const EdgeInsets.all(16),
                               child: Column(
                                 children: [
-                                  // 👇 ЗДЕСЬ ТЕПЕРЬ ИСПОЛЬЗУЕТСЯ ДИНАМИЧЕСКИЙ ПЕРЕВОД ОЦЕНКИ 👇
                                   _buildOverallCard(result.score, _getPerformanceLabel(result.score, settings), settings, textColor, cardColor),
                                   const SizedBox(height: 16),
                                   Row(
                                     children: [
-                                      // 👇 ЗДЕСЬ ТЕПЕРЬ ПЕРЕВОДЯТСЯ СЕКУНДЫ 👇
                                       Expanded(child: _buildTimeCard(Icons.bolt, _formatTime(provider.avgResponseFormatted, settings), settings.t('avg_response'), textColor, cardColor)),
                                       const SizedBox(width: 16),
-                                      // 👇 И МИНУТЫ 👇
                                       Expanded(child: _buildTimeCard(Icons.schedule, _formatTime(provider.totalTimeFormatted, settings), settings.t('total_time'), textColor, cardColor)),
                                     ],
                                   ),

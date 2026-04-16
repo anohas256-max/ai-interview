@@ -1,25 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
+
 import 'package:sobes/features/home/widgets/history_drawer.dart';
 import 'package:sobes/features/profile/presentation/pages/profile_page.dart';
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
+// 👇 Добавили импорт HistoryProvider
+import 'package:sobes/features/history/presentation/providers/history_provider.dart'; 
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
 import 'package:sobes/features/interview/presentation/pages/chat_page.dart';
 import 'package:sobes/features/interview/presentation/pages/mode_selection_page.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
 import 'package:sobes/core/widgets/balance_badge.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+
+  @override
+  void initState() {
+    super.initState();
+    // При каждом заходе на главный экран - дергаем актуальную историю с сервера
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HistoryProvider>().loadHistory();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final authData = context.watch<AuthProvider>();
-    final interviewProvider = context.watch<InterviewProvider>();
+    final historyProvider = context.watch<HistoryProvider>(); // 👈 Слушаем историю
     final settings = context.watch<SettingsProvider>();
-    
-    // 👇 Мы убрали отсюда CatalogProvider.updateLanguage, теперь экран чистый!
     
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
     
@@ -27,11 +43,15 @@ class HomePage extends StatelessWidget {
     final String initials = currentName.trim().isNotEmpty && currentName != "?"
         ? currentName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join() : "?";
 
+    // 👇 ИЩЕМ ПОСЛЕДНИЙ НЕЗАВЕРШЕННЫЙ ЧАТ В ИСТОРИИ (А НЕ В ЛОКАЛЬНОМ ЧЕРНОВИКЕ) 👇
+    final lastUnfinishedSession = historyProvider.sessions
+        .where((s) => !s.isFinished && !s.isFailed)
+        .firstOrNull;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor, 
       drawer: const HistoryDrawer(),
       appBar: AppBar(
-        
         backgroundColor: Colors.transparent, elevation: 0,
         leading: Builder(builder: (context) {
           return IconButton(icon: Icon(Icons.menu, color: textColor), onPressed: () => Scaffold.of(context).openDrawer());
@@ -46,7 +66,6 @@ class HomePage extends StatelessWidget {
                 width: 40, height: 40,
                 decoration: BoxDecoration(color: Theme.of(context).cardColor, shape: BoxShape.circle, border: Border.all(color: Colors.grey.withOpacity(0.2))),
                 child: Center(child: Text(initials, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14))),
-              
               ),
             ),
           )
@@ -82,13 +101,18 @@ class HomePage extends StatelessWidget {
               ),
               const Gap(48),
 
-              if (interviewProvider.hasDraft) ...[
+              // 👇 ЕСЛИ НАШЛИ НЕЗАВЕРШЕННУЮ СЕССИЮ В БД - ПОКАЗЫВАЕМ КНОПКУ ПРОДОЛЖИТЬ 👇
+              if (lastUnfinishedSession != null) ...[
                 SizedBox(
                   width: 220, height: 56,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      await interviewProvider.loadDraft();
-                      if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(role: interviewProvider.config?.role ?? "")));
+                    onPressed: () {
+                      // Загружаем сессию в "мозг" и открываем чат
+                      context.read<InterviewProvider>().loadSessionFromHistory(lastUnfinishedSession);
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(builder: (_) => ChatPage(role: lastUnfinishedSession.config.role))
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).cardColor, foregroundColor: textColor,
@@ -120,22 +144,9 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
+              
               const Spacer(flex: 3), 
-
-              Container(
-                margin: const EdgeInsets.only(bottom: 24), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(30), border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min, 
-                  children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF4CAF50), shape: BoxShape.circle)),
-                    const Gap(10),
-                    Text(settings.t('free_sessions'), style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                  ],
-                ),
-              ),
+              // ❌ Нижнюю заглушку с фейковыми "2 бесплатными сессиями" я удалил ❌
             ],
           ),
         ),
