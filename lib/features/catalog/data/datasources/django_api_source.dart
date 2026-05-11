@@ -154,6 +154,33 @@ class DjangoApiSource {
     }
   }
 
+
+// 👇 НОВЫЕ МЕТОДЫ ДЛЯ ЭНЕРГИИ 👇
+  
+  // Проверяет/получает ежедневную награду
+  Future<Map<String, dynamic>> checkDailyReward() async {
+    try {
+      final response = await _dio.post('/daily-reward/');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print("Ошибка ежедневной награды: $e");
+      return {"success": false, "message": "Ошибка сети"};
+    }
+  }
+
+  // Покупка/Добавление энергии (для кнопки +)
+  Future<Map<String, dynamic>> addEnergy(double amount) async {
+    try {
+      final response = await _dio.post('/add-energy/', data: {"amount": amount});
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print("Ошибка добавления энергии: $e");
+      return {"success": false, "message": "Ошибка сети"};
+    }
+  }
+
+
+
   Future<Map<String, dynamic>> startSession(SessionConfig config) async {
     try {
       final response = await _dio.post(
@@ -217,4 +244,7 @@ class AiResponseData {
       cost: (json['cost'] ?? 0.0).toDouble(),
     );
   }
+
+
+
 }

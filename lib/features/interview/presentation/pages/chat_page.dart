@@ -274,6 +274,10 @@ class _ChatPageState extends State<ChatPage> {
                                           maxLength: provider.isLegendPhase ? 1000 : 5000, 
                                           style: TextStyle(color: textColor), 
                                           enabled: !isLoading, 
+                                          textInputAction: TextInputAction.send,
+                                          onSubmitted: (_) {
+                                            if (!isLoading) _sendMessage();
+                                          },
                                           decoration: InputDecoration(
                                             hintText: provider.isLegendPhase ? settings.t('legend_hint') : (isLoading ? settings.t('ai_typing') : settings.t('your_answer')),
                                             hintStyle: const TextStyle(color: Colors.grey),
