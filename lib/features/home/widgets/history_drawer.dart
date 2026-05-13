@@ -20,30 +20,62 @@ class _HistoryDrawerState extends State<HistoryDrawer> {
     WidgetsBinding.instance.addPostFrameCallback((_) => context.read<HistoryProvider>().loadHistory());
   }
 
-  void _showSortFilterSheet(BuildContext context, HistoryProvider provider) {
+  // 👇 ТЕПЕРЬ ТУТ ТОЛЬКО СОРТИРОВКА 👇
+  void _showSortSheet(BuildContext context, HistoryProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text("Сортировка", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Gap(10),
-          Wrap(spacing: 8, children: [
-            ChoiceChip(label: const Text("Недавние"), selected: provider.currentSort == HistorySortType.dateDesc, onSelected: (_) => provider.setSort(HistorySortType.dateDesc)),
-            ChoiceChip(label: const Text("Старые"), selected: provider.currentSort == HistorySortType.dateAsc, onSelected: (_) => provider.setSort(HistorySortType.dateAsc)),
-            ChoiceChip(label: const Text("Лучшие оценки"), selected: provider.currentSort == HistorySortType.scoreDesc, onSelected: (_) => provider.setSort(HistorySortType.scoreDesc)),
-          ]),
-          const Gap(20),
-          const Text("Фильтр", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const Gap(10),
-          Wrap(spacing: 8, children: [
-            ChoiceChip(label: const Text("Все"), selected: provider.currentFilter == HistoryFilterType.all, onSelected: (_) => provider.setFilter(HistoryFilterType.all)),
-            ChoiceChip(label: const Text("Завершенные"), selected: provider.currentFilter == HistoryFilterType.finished, onSelected: (_) => provider.setFilter(HistoryFilterType.finished)),
-            ChoiceChip(label: const Text("В процессе"), selected: provider.currentFilter == HistoryFilterType.unfinished, onSelected: (_) => provider.setFilter(HistoryFilterType.unfinished)),
-          ]),
-          const Gap(20),
-        ]),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, 
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Сортировка", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Gap(16),
+              Wrap(
+                spacing: 8, 
+                runSpacing: 8, 
+                children: [
+                  ChoiceChip(
+                    label: const Text("Недавние"), 
+                    selected: provider.currentSort == HistorySortType.dateDesc, 
+                    side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+                    onSelected: (_) {
+                      provider.setSort(HistorySortType.dateDesc);
+                      Navigator.pop(ctx);
+                    }
+                  ),
+                  ChoiceChip(
+                    label: const Text("Старые"), 
+                    selected: provider.currentSort == HistorySortType.dateAsc, 
+                    side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+                    onSelected: (_) {
+                      provider.setSort(HistorySortType.dateAsc);
+                      Navigator.pop(ctx);
+                    }
+                  ),
+                  ChoiceChip(
+                    label: const Text("Лучшие оценки"), 
+                    selected: provider.currentSort == HistorySortType.scoreDesc, 
+                    side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+                    onSelected: (_) {
+                      provider.setSort(HistorySortType.scoreDesc);
+                      Navigator.pop(ctx);
+                    }
+                  ),
+                ]
+              ),
+              const Gap(8),
+            ]
+          ),
+        ),
       ),
     );
   }
@@ -53,11 +85,27 @@ class _HistoryDrawerState extends State<HistoryDrawer> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(context).cardColor,
-        title: const Text("Очистить историю?"),
-        content: const Text("Вы уверены, что хотите удалить все сессии? Это действие необратимо.", style: TextStyle(color: Colors.grey)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            Gap(8),
+            Text("Очистить историю?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text("Вы уверены, что хотите удалить все сессии? Это действие необратимо.", style: TextStyle(color: Colors.grey, fontSize: 14)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Отмена", style: TextStyle(color: Colors.grey))),
-          TextButton(onPressed: () { provider.clearAllHistoryFromDB(); Navigator.pop(ctx); }, child: const Text("Удалить всё", style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Отмена", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () { provider.clearAllHistoryFromDB(); Navigator.pop(ctx); }, 
+            child: const Text("Удалить всё", style: TextStyle(fontWeight: FontWeight.bold))
+          ),
         ],
       ),
     );
@@ -80,14 +128,14 @@ class _HistoryDrawerState extends State<HistoryDrawer> {
               Text(settings.t('drawer_archive'), style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold)),
               Row(
                 children: [
-                  IconButton(icon: const Icon(Icons.tune), onPressed: () => _showSortFilterSheet(context, historyProvider)),
+                  IconButton(icon: const Icon(Icons.sort), onPressed: () => _showSortSheet(context, historyProvider)),
                   if (sessions.isNotEmpty)
-                    IconButton(icon: const Icon(Icons.delete_sweep, color: Colors.red), onPressed: () => _confirmClearHistory(context, historyProvider)),
+                    IconButton(icon: const Icon(Icons.delete_sweep, color: Colors.redAccent), onPressed: () => _confirmClearHistory(context, historyProvider)),
                 ],
               ),
             ]),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
           Expanded(
             child: sessions.isEmpty 
               ? Center(child: Text(settings.t('drawer_empty'), style: const TextStyle(color: Colors.grey)))
@@ -126,20 +174,44 @@ class _HistoryItem extends StatelessWidget {
   }
 
   void _showRenameDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final ctrl = TextEditingController(text: session.title);
+    
     showDialog(context: context, builder: (ctx) => AlertDialog(
       backgroundColor: Theme.of(context).cardColor,
-      title: const Text("Переименовать"),
-      content: TextField(controller: ctrl, autofocus: true, decoration: const InputDecoration(hintText: "Новое название")),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text("Переименовать", style: TextStyle(fontWeight: FontWeight.bold)),
+      content: TextField(
+        controller: ctrl, 
+        autofocus: true, 
+        decoration: InputDecoration(
+          hintText: "Новое название",
+          filled: true,
+          fillColor: isDark ? Colors.black12 : Colors.grey.shade50,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        )
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Отмена", style: TextStyle(color: Colors.grey))),
-        TextButton(onPressed: () { provider.renameSession(session, ctrl.text); Navigator.pop(ctx); }, child: const Text("Сохранить", style: TextStyle(fontWeight: FontWeight.bold))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () { provider.renameSession(session, ctrl.text); Navigator.pop(ctx); }, 
+          child: const Text("Сохранить", style: TextStyle(fontWeight: FontWeight.bold))
+        ),
       ],
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return InkWell(
       onTap: () {
         context.read<InterviewProvider>().loadSessionFromHistory(session);
@@ -167,14 +239,20 @@ class _HistoryItem extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.grey.withOpacity(0.2))),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor, 
+                    borderRadius: BorderRadius.circular(6), 
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08))
+                  ),
                   child: Text(_formatDate(session.date, settings), style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
-                // 👇 КОМПАКТНОЕ POPUP МЕНЮ (КАК НА СКРИНШОТЕ) 👇
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_horiz, color: Colors.grey, size: 20),
                   color: Theme.of(context).cardColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                  ),
                   padding: EdgeInsets.zero,
                   onSelected: (value) {
                     if (value == 'rename') _showRenameDialog(context);
@@ -183,11 +261,11 @@ class _HistoryItem extends StatelessWidget {
                   itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                     const PopupMenuItem<String>(
                       value: 'rename',
-                      child: Row(children: [Icon(Icons.edit, size: 18, color: Colors.blueAccent), Gap(10), Text('Переименовать')]),
+                      child: Row(children: [Icon(Icons.edit, size: 18, color: Colors.blueAccent), Gap(10), Text('Переименовать', style: TextStyle(fontWeight: FontWeight.w500))]),
                     ),
                     const PopupMenuItem<String>(
                       value: 'delete',
-                      child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.redAccent), Gap(10), Text('Удалить', style: TextStyle(color: Colors.redAccent))]),
+                      child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.redAccent), Gap(10), Text('Удалить', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500))]),
                     ),
                   ],
                 ),

@@ -5,7 +5,7 @@ import 'package:sobes/features/interview/domain/entities/analysis_result.dart';
 
 class SessionHistory {
   final dynamic id; 
-  final DateTime date; // Это теперь дата ПОСЛЕДНЕЙ АКТИВНОСТИ
+  final DateTime date; 
   final SessionConfig config;
   final List<MessageEntity> messages;
   final bool isFinished;
@@ -24,12 +24,26 @@ class SessionHistory {
     this.customName,
   });
 
-  String get title => customName != null && customName!.isNotEmpty ? customName! : config.role;
+  // 👇 ОБНОВЛЕННАЯ ЛОГИКА ЗАГОЛОВКА 👇
+  String get title {
+    if (customName != null && customName!.isNotEmpty) {
+      return customName!;
+    }
+    
+    String rawTitle = config.role;
+    
+    // Защита от системных строк, если они просочились
+    if (rawTitle.toLowerCase() == 'custom_opt' || rawTitle == 'Свой вариант' || rawTitle == 'Custom') {
+       rawTitle = config.isRoleplayMode ? "Кастомное собеседование" : "Кастомный квиз";
+    }
+
+    return rawTitle;
+  }
+
   String get subtitle => config.isRoleplayMode ? config.persona : "Технический опрос";
   double get score => analysisResult?.score ?? 0.0;
   bool get hasAnalysis => analysisResult != null;
 
-  // 👇 ВОЗВРАЩАЕМ ТВОЙ ОРИГИНАЛЬНЫЙ НАДЕЖНЫЙ МЕТОД СОХРАНЕНИЯ 👇
   Map<String, dynamic> toFullDataJson() {
     return {
       'config': config.toMap(),
@@ -60,7 +74,6 @@ class SessionHistory {
   }
 
   factory SessionHistory.fromMap(Map<String, dynamic> map) {
-    // УЛЬТРА-БЕЗОПАСНЫЙ ПАРСИНГ
     Map<String, dynamic> fullData = {};
     try {
       if (map['full_data_json'] is String) {
@@ -74,7 +87,6 @@ class SessionHistory {
 
     final configMap = fullData['config'] is Map ? fullData['config'] as Map<String, dynamic> : <String, dynamic>{};
     
-    // БЕЗОПАСНЫЙ ПАРСИНГ СООБЩЕНИЙ
     List<MessageEntity> parsedMessages = [];
     if (fullData['messages'] is List) {
       for (var m in fullData['messages']) {
@@ -101,7 +113,6 @@ class SessionHistory {
       parsedConfig = SessionConfig(role: "Неизвестная роль", language: "Русский", difficulty: "Легкий", isRoleplayMode: false, persona: "", feedbackStyle: "", includeLegend: false, questionLimit: 5);
     }
 
-    // 👇 БЕРЕМ ДАТУ ПОСЛЕДНЕГО ОБНОВЛЕНИЯ (ДЛЯ СОРТИРОВКИ АКТИВНЫХ ЧАТОВ ВВЕРХ) 👇
     DateTime parsedDate = DateTime.now();
     try {
       if (map['updated_at'] != null) {

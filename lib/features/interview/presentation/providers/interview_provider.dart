@@ -4,11 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/session_config.dart';
 import '../../domain/entities/analysis_result.dart';
-import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/interview_repository.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:sobes/features/history/domain/entities/session_history.dart';
-import 'package:sobes/features/catalog/data/datasources/django_api_source.dart';
 
 class InterviewProvider extends ChangeNotifier {
   final InterviewRepository repository;
@@ -22,17 +20,14 @@ class InterviewProvider extends ChangeNotifier {
   bool _isFailed = false;
   bool _isFinished = false;
 
-  // --- ЭТАП 3: ID СЕССИИ ДЛЯ АВТОСОХРАНЕНИЯ ---
   int? _currentSessionId;
 
-  // --- ТАЙМЕРЫ И ЧЕРНОВИК ---
   DateTime? _sessionStartTime;
   DateTime? _lastAiResponseTime;
   final List<int> _userResponseDurations = [];
   int _elapsedSeconds = 0;
   bool _hasDraft = false;
 
-  // --- АНАЛИТИКА И ЛОГИ ---
   AnalysisResult? _analysisResult;
   bool _isAnalyzing = false;
 
@@ -67,14 +62,12 @@ class InterviewProvider extends ChangeNotifier {
     return "${avg.round()}s";
   }
 
-  // 👇 ОБНОВЛЕННЫЙ SETCONFIG 👇
   void setConfig(SessionConfig config) {
     _config = config;
-    _currentSessionId = null; // Сбрасываем старый ID при новой настройке
+    _currentSessionId = null; 
     notifyListeners();
   }
 
-  // 👇 ОБНОВЛЕННЫЙ STARTSESSION (Сохраняем ID из ответа сервера) 👇
   Future<Map<String, dynamic>> startSession(SessionConfig config) async {
     final result = await repository.startSession(config);
     if (result['success'] == true) {
@@ -145,7 +138,6 @@ class InterviewProvider extends ChangeNotifier {
     }
   }
 
-  // 👇 ОБНОВЛЕННЫЙ STARTINTERVIEW (Передаем ID) 👇
   Future<void> startInterview() async {
     if (_messages.isNotEmpty || _config == null || _isLoading) return;
 
@@ -153,7 +145,6 @@ class InterviewProvider extends ChangeNotifier {
     _sessionStartTime = DateTime.now();
     notifyListeners();
     try {
-      // 🛑 Отправляем чистую команду Джанго. В историю это НЕ запишется!
       final aiData = await repository.sendMessage(
         text: "START_INTERVIEW", 
         history: [],
@@ -173,8 +164,9 @@ class InterviewProvider extends ChangeNotifier {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || _config == null || _isLoading) return;
 
-    if (_lastAiResponseTime != null)
+    if (_lastAiResponseTime != null) {
       _userResponseDurations.add(DateTime.now().difference(_lastAiResponseTime!).inSeconds);
+    }
     _messages.add(MessageEntity(text: text, isUser: true, timestamp: DateTime.now()));
     if (_config!.includeLegend && _userLegend.isEmpty) _userLegend = text;
 
@@ -186,17 +178,16 @@ class InterviewProvider extends ChangeNotifier {
           ? _messages.where((m) => m.isUser).length - 1
           : _messages.where((m) => m.isUser).length;
 
-      // 🛑 Вычисляем флаг лимита
       bool limitReached = !_config!.isEndlessMode && techAnswersCount >= _config!.questionLimit;
 
       final aiData = await repository.sendMessage(
-        text: text, // 👈 ШЛЕМ ТОЛЬКО ЧИСТЫЙ ТЕКСТ ЮЗЕРА! НИКАКИХ ПРИПИСОК!
+        text: text, 
         history: _messages.length > 4 ? _messages.sublist(_messages.length - 4) : _messages,
         config: _config!,
         userLegend: _userLegend,
         askedQuestions: _askedQuestions,
         sessionId: _currentSessionId ?? 0,
-        isLimitReached: limitReached, // 👈 ПЕРЕДАЕМ ФЛАГ ДЖАНГО
+        isLimitReached: limitReached, 
       );
       _lastAiResponseTime = DateTime.now();
       _processAiResponse(aiData.text);
@@ -226,7 +217,7 @@ class InterviewProvider extends ChangeNotifier {
     _askedQuestions.add(rawText);
     _messages.add(MessageEntity(text: rawText, isUser: false, timestamp: DateTime.now()));
 
-    speak(rawText);
+    // ❌ АВТО-ОЗВУЧКА УДАЛЕНА. ТЕПЕРЬ ТОЛЬКО ПО КНОПКЕ. ❌
     _saveDraft();
   }
 
@@ -355,16 +346,18 @@ class InterviewProvider extends ChangeNotifier {
     _elapsedSeconds = 0;
     _sessionStartTime = null;
     _lastAiResponseTime = null;
-    _currentSessionId = null; // Чистим ID сессии
+    _currentSessionId = null; 
+    
+    // Останавливаем звук при очистке
+    await _tts.stop();
+    _currentlyPlayingText = null;
     notifyListeners();
   }
 
   // --- ЗВУК И ОЗВУЧКА ---
   final FlutterTts _tts = FlutterTts();
-  bool _isVoiceEnabled = true;
   String? _currentlyPlayingText;
 
-  bool get isVoiceEnabled => _isVoiceEnabled;
   String? get currentlyPlayingText => _currentlyPlayingText;
 
   void loadSessionFromHistory(SessionHistory session) {
@@ -375,38 +368,41 @@ class InterviewProvider extends ChangeNotifier {
     _isFailed = session.isFailed;
     _analysisResult = session.analysisResult;
     _hasDraft = false;
-    _currentSessionId = session.id is int ? session.id as int : null; // Подхватываем ID из истории
-    notifyListeners();
-  }
-
-  void toggleVoice() {
-    _isVoiceEnabled = !_isVoiceEnabled;
-    if (!_isVoiceEnabled) {
-      _tts.stop();
-      _currentlyPlayingText = null;
-    }
+    _currentSessionId = session.id is int ? session.id as int : null;
     notifyListeners();
   }
 
   Future<void> speak(String text) async {
-    if (!_isVoiceEnabled) return;
+    // 1. Если нажали на то же самое сообщение, которое сейчас играет — останавливаем.
     if (_currentlyPlayingText == text) {
       await _tts.stop();
       _currentlyPlayingText = null;
       notifyListeners();
       return;
     }
-    _tts.setCompletionHandler(() {
-      _currentlyPlayingText = null;
-      notifyListeners();
-    });
+    
+    // 2. Если играло что-то другое, сперва тормозим его
     await _tts.stop();
+    
+    // 3. Запускаем новое
     _currentlyPlayingText = text;
     notifyListeners();
 
-    await _tts.setLanguage("ru-RU");
+    _tts.setCompletionHandler(() {
+      if (_currentlyPlayingText == text) {
+        _currentlyPlayingText = null;
+        notifyListeners();
+      }
+    });
+
+    // Определяем язык по конфигу сессии
+    if (_config?.language == 'English') {
+      await _tts.setLanguage("en-US");
+    } else {
+      await _tts.setLanguage("ru-RU");
+    }
+    
     await _tts.setPitch(1.0);
-    await _tts.setSpeechRate(1.0);
     await _tts.speak(text);
   }
 }

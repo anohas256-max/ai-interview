@@ -59,6 +59,60 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  // 👇 ДИАЛОГ ПОДТВЕРЖДЕНИЯ ЗАВЕРШЕНИЯ 👇
+  Future<bool?> _showEndConfirmDialog(BuildContext context, SettingsProvider settings) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            const Gap(8),
+            Expanded(
+              child: Text(
+                settings.t('end_chat_title') != 'end_chat_title' ? settings.t('end_chat_title') : 'Завершить чат?', 
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          settings.t('end_chat_desc') != 'end_chat_desc' 
+              ? settings.t('end_chat_desc') 
+              : 'Вы уверены, что хотите досрочно завершить собеседование? Это действие необратимо.',
+          style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.grey.shade700, fontSize: 14, height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              settings.t('cancel') != 'cancel' ? settings.t('cancel') : 'Отмена', 
+              style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              settings.t('confirm_end') != 'confirm_end' ? settings.t('confirm_end') : 'Завершить', 
+              style: const TextStyle(fontWeight: FontWeight.bold)
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InterviewProvider>();
@@ -66,6 +120,7 @@ class _ChatPageState extends State<ChatPage> {
     final messages = provider.messages;
     final isLoading = provider.isLoading;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
     final cardColor = Theme.of(context).cardColor;
 
@@ -80,14 +135,12 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               Column(
                 children: [
-                  // 👇 --- ИДЕАЛЬНАЯ ШАПКА ЧАТА --- 👇
                   SafeArea(
                     bottom: false,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
-                          // 1. Кнопка "Назад"
                           IconButton(
                             icon: Icon(Icons.arrow_back, color: textColor), 
                             onPressed: () {
@@ -96,44 +149,46 @@ class _ChatPageState extends State<ChatPage> {
                             },
                           ),
                           
-                          const Spacer(), // 2. Расталкиваем элементы по краям
+                          const Spacer(), 
                           
-                          // 3. Кнопка звука (теперь она прижата вправо)
-                          IconButton(
-                            icon: Icon(
-                              provider.isVoiceEnabled ? Icons.volume_up : Icons.volume_off,
-                              color: provider.isVoiceEnabled ? Colors.blueAccent : Colors.grey,
-                            ),
-                            onPressed: () => provider.toggleVoice(),
-                          ),
-                          
-                          const Gap(8), // Небольшой отступ между звуком и кнопкой END
-
-                          // 4. Кнопка завершения с ПЕРЕВОДОМ
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context, 
-                                MaterialPageRoute(builder: (_) => const AnalysisPage())
-                              );
+                          // Красивая кнопка "Завершить" с подтверждением
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              context.read<InterviewProvider>().pauseTimer();
+                              
+                              final shouldEnd = await _showEndConfirmDialog(context, settings);
+                              if (!context.mounted) return;
+                              
+                              if (shouldEnd == true) {
+                                Navigator.pushReplacement(
+                                  context, 
+                                  MaterialPageRoute(builder: (_) => const AnalysisPage())
+                                );
+                              } else {
+                                context.read<InterviewProvider>().resumeTimer();
+                              }
                             },
-                            style: TextButton.styleFrom(
-                              backgroundColor: Colors.red.withOpacity(0.1),
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), 
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), 
+                            icon: const Icon(Icons.stop_circle_outlined, size: 20),
+                            label: Text(
+                              settings.t('end'),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)
                             ),
-                            child: Text(
-                              settings.t('end'), // 👈 Перевод работает здесь
-                              style: const TextStyle(color: Color(0xFFFF453A), fontWeight: FontWeight.bold, fontSize: 16)
-                            ), 
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark ? Colors.redAccent.withOpacity(0.15) : Colors.red.shade50,
+                              foregroundColor: isDark ? Colors.redAccent.shade100 : Colors.red.shade700,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(color: isDark ? Colors.redAccent.withOpacity(0.3) : Colors.red.shade200),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  // 👆 --- КОНЕЦ ШАПКИ --- 👆
 
-                  // --- СПИСОК СООБЩЕНИЙ ---
                   Expanded(
                     child: ListView.builder(
                       controller: _scrollController,
@@ -155,9 +210,6 @@ class _ChatPageState extends State<ChatPage> {
                                   bottomRight: Radius.circular(20),
                                 ),
                                 border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.blueAccent.withOpacity(0.1), blurRadius: 10)
-                                ],
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -184,7 +236,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
 
-                  // --- КНОПКА ПОВТОРА ПРИ ОШИБКЕ ---
                   if (messages.isNotEmpty && !messages.last.isUser && messages.last.text.contains('⚠️'))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
@@ -205,7 +256,6 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     ),
 
-                  // --- ПАНЕЛЬ ВВОДА ИЛИ КНОПКА ЗАВЕРШЕНИЯ ---
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -219,7 +269,7 @@ class _ChatPageState extends State<ChatPage> {
                             height: 56,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.push(
+                                Navigator.pushReplacement(
                                   context, 
                                   MaterialPageRoute(builder: (_) => const AnalysisPage())
                                 );
@@ -248,61 +298,65 @@ class _ChatPageState extends State<ChatPage> {
                               ),
                             ),
                           )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              AudioRecorderBtn(
-                                textController: _controller,
-                                isDisabled: isLoading,
-                              ),
-                              const Gap(4), 
-                              
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: cardColor, 
-                                    borderRadius: BorderRadius.circular(26),
-                                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _controller,
-                                          minLines: 1,
-                                          maxLines: 4,
-                                          maxLength: provider.isLegendPhase ? 1000 : 5000, 
-                                          style: TextStyle(color: textColor), 
-                                          enabled: !isLoading, 
-                                          textInputAction: TextInputAction.send,
-                                          onSubmitted: (_) {
-                                            if (!isLoading) _sendMessage();
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: provider.isLegendPhase ? settings.t('legend_hint') : (isLoading ? settings.t('ai_typing') : settings.t('your_answer')),
-                                            hintStyle: const TextStyle(color: Colors.grey),
-                                            border: InputBorder.none,
-                                            counterText: "", 
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(right: 8.0),
-                                        child: IconButton(
-                                          icon: const Icon(Icons.arrow_upward, color: Colors.white),
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: isLoading ? Colors.transparent : Colors.blueAccent, 
-                                            padding: const EdgeInsets.all(8),
-                                          ),
-                                          onPressed: isLoading ? null : _sendMessage,
-                                        ),
-                                      ),
-                                    ],
+                        : IntrinsicHeight( // 👈 Это магический виджет для выравнивания микрофона
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 2.0), // Тонкая подгонка под поле
+                                  child: AudioRecorderBtn(
+                                    textController: _controller,
+                                    isDisabled: isLoading,
                                   ),
                                 ),
-                              ),
-                            ],
+                                const Gap(8), 
+                                Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: cardColor, 
+                                      borderRadius: BorderRadius.circular(26),
+                                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _controller,
+                                            minLines: 1,
+                                            maxLines: 4,
+                                            maxLength: provider.isLegendPhase ? 1000 : 5000, 
+                                            style: TextStyle(color: textColor), 
+                                            enabled: !isLoading, 
+                                            textInputAction: TextInputAction.send,
+                                            onSubmitted: (_) {
+                                              if (!isLoading) _sendMessage();
+                                            },
+                                            decoration: InputDecoration(
+                                              hintText: provider.isLegendPhase ? settings.t('legend_hint') : (isLoading ? settings.t('ai_typing') : settings.t('your_answer')),
+                                              hintStyle: const TextStyle(color: Colors.grey),
+                                              border: InputBorder.none,
+                                              counterText: "", 
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                            ),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                                          child: IconButton(
+                                            icon: const Icon(Icons.arrow_upward, color: Colors.white),
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: isLoading ? Colors.transparent : Colors.blueAccent, 
+                                              padding: const EdgeInsets.all(8),
+                                            ),
+                                            onPressed: isLoading ? null : _sendMessage,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                     ),
                   ),

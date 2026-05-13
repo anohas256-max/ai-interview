@@ -116,12 +116,23 @@ class SettingsProvider extends ChangeNotifier {
       'session_finished': 'Session complete! View results',
       'transcript_title': 'Transcript',
       'no_rating': 'No rating received',
+      'play_voice': 'Speak',
+      'stop_voice': 'Stop',
+      'end_chat_title': 'End interview?',
+      'end_chat_desc': 'Are you sure you want to end the session early? This action is irreversible.',
+      'confirm_end': 'End Now',
 
       // Dropdowns & Snackbars
       'persona_hr': 'Strict HR Manager', 'persona_recruiter': 'Friendly Recruiter', 
       'persona_techlead': 'Picky Tech Lead', 'persona_fool': 'Clueless Interviewer',
-      'diff_junior': 'Junior (Basic)', 'diff_middle': 'Middle (Standard)', 
-      'diff_senior': 'Senior (Hardcore)', 'diff_progressive': 'Progressive (Adaptive)',
+      
+      // 👇 НОВЫЕ УНИВЕРСАЛЬНЫЕ УРОВНИ (EN) 👇
+      'diff_basic': 'Basic', 
+      'diff_intermediate': 'Intermediate', 
+      'diff_advanced': 'Advanced', 
+      'diff_expert': 'Expert', 
+      'diff_progressive': 'Progressive (Adaptive)',
+      
       'quiz_short': 'Short (3-5 questions)', 'quiz_medium': 'Medium (8-10 questions)', 'quiz_long': 'Long (14-16 questions)',
       'style_friendly': 'Friendly', 'style_friendly_desc': 'Soft and supportive',
       'style_strict': 'To the point', 'style_strict_desc': 'Dry, clear, no emotions',
@@ -239,7 +250,7 @@ class SettingsProvider extends ChangeNotifier {
 
       // Chat & Transcript Page
       'live': 'Live',
-      'end': 'завершить',
+      'end': 'Завершить',
       'ai_typing': 'AI печатает...',
       'your_answer': 'Ваш ответ...',
       'legend_hint': 'Кратко расскажите о себе...',
@@ -249,12 +260,23 @@ class SettingsProvider extends ChangeNotifier {
       'session_finished': 'Сессия завершена! Смотреть итоги',
       'transcript_title': 'Разбор диалога',
       'no_rating': 'Оценка не получена',
+      'play_voice': 'Озвучить',
+      'stop_voice': 'Остановить',
+      'end_chat_title': 'Завершить чат?',
+      'end_chat_desc': 'Вы уверены, что хотите досрочно прервать собеседование? Это действие необратимо.',
+      'confirm_end': 'Да, завершить',
 
       // Dropdowns & Snackbars
       'persona_hr': 'Строгий HR-менеджер', 'persona_recruiter': 'Добродушный рекрутер', 
       'persona_techlead': 'Придирчивый Техлид', 'persona_fool': 'Простофиля (вообще не шарит)',
-      'diff_junior': 'Junior (Базовый)', 'diff_middle': 'Middle (Средний)', 
-      'diff_senior': 'Senior (Хардкор)', 'diff_progressive': 'Progressive (Адаптивно)',
+      
+      // 👇 НОВЫЕ УНИВЕРСАЛЬНЫЕ УРОВНИ (RU) 👇
+      'diff_basic': 'Базовый', 
+      'diff_intermediate': 'Средний', 
+      'diff_advanced': 'Углубленный', 
+      'diff_expert': 'Экспертный', 
+      'diff_progressive': 'Адаптивный (динамический)',
+      
       'quiz_short': 'Мало (3-5 вопросов)', 'quiz_medium': 'Средне (8-10 вопросов)', 'quiz_long': 'Много (14-16 вопросов)',
       'style_friendly': 'Дружелюбный', 'style_friendly_desc': 'Мягко указывает на ошибки',
       'style_strict': 'По делу', 'style_strict_desc': 'Сухо, четко, без эмоций',

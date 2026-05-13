@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:sobes/features/home/widgets/history_drawer.dart';
 import 'package:sobes/features/profile/presentation/pages/profile_page.dart';
 import 'package:sobes/features/auth/presentation/providers/auth_provider.dart';
-// 👇 Добавили импорт HistoryProvider
 import 'package:sobes/features/history/presentation/providers/history_provider.dart'; 
 import 'package:sobes/features/interview/presentation/providers/interview_provider.dart';
 import 'package:sobes/features/interview/presentation/pages/chat_page.dart';
@@ -25,7 +24,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // При каждом заходе на главный экран - дергаем актуальную историю с сервера
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HistoryProvider>().loadHistory();
     });
@@ -34,7 +32,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final authData = context.watch<AuthProvider>();
-    final historyProvider = context.watch<HistoryProvider>(); // 👈 Слушаем историю
+    final historyProvider = context.watch<HistoryProvider>(); 
     final settings = context.watch<SettingsProvider>();
     
     final textColor = Theme.of(context).textTheme.bodyLarge?.color;
@@ -43,7 +41,6 @@ class _HomePageState extends State<HomePage> {
     final String initials = currentName.trim().isNotEmpty && currentName != "?"
         ? currentName.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join() : "?";
 
-    // 👇 ИЩЕМ ПОСЛЕДНИЙ НЕЗАВЕРШЕННЫЙ ЧАТ В ИСТОРИИ (А НЕ В ЛОКАЛЬНОМ ЧЕРНОВИКЕ) 👇
     final lastUnfinishedSession = historyProvider.sessions
         .where((s) => !s.isFinished && !s.isFailed)
         .firstOrNull;
@@ -57,9 +54,10 @@ class _HomePageState extends State<HomePage> {
           return IconButton(icon: Icon(Icons.menu, color: textColor), onPressed: () => Scaffold.of(context).openDrawer());
         }),
         actions: [
-          const BalanceBadge(),
-          Padding(
-            padding: const EdgeInsets.only(right: 24), 
+          // 👇 1. Выстроили элементы аккуратно в ряд (Профиль теперь строго в углу) 👇
+          const Center(child: BalanceBadge()),
+          const Gap(12),
+          Center(
             child: GestureDetector( 
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage())),
               child: Container(
@@ -68,7 +66,8 @@ class _HomePageState extends State<HomePage> {
                 child: Center(child: Text(initials, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14))),
               ),
             ),
-          )
+          ),
+          const Gap(16), // 👈 Четкий отступ от края экрана
         ],
       ),
       body: SafeArea(
@@ -101,52 +100,69 @@ class _HomePageState extends State<HomePage> {
               ),
               const Gap(48),
 
-              // 👇 ЕСЛИ НАШЛИ НЕЗАВЕРШЕННУЮ СЕССИЮ В БД - ПОКАЗЫВАЕМ КНОПКУ ПРОДОЛЖИТЬ 👇
+              // 👇 2. Сделали кнопки адаптивными, чтобы не заезжали за экран 👇
               if (lastUnfinishedSession != null) ...[
-                SizedBox(
-                  width: 220, height: 56,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Загружаем сессию в "мозг" и открываем чат
-                      context.read<InterviewProvider>().loadSessionFromHistory(lastUnfinishedSession);
-                      Navigator.push(
-                        context, 
-                        MaterialPageRoute(builder: (_) => ChatPage(role: lastUnfinishedSession.config.role))
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).cardColor, foregroundColor: textColor,
-                      shape: const StadiumBorder(), elevation: 2,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.restore, size: 20), const Gap(8),
-                        Text(settings.t('continue_chat'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 220, maxWidth: 320), // Адаптивная ширина
+                  child: SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        context.read<InterviewProvider>().loadSessionFromHistory(lastUnfinishedSession);
+                        Navigator.push(
+                          context, 
+                          MaterialPageRoute(builder: (_) => ChatPage(role: lastUnfinishedSession.config.role))
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).cardColor, foregroundColor: textColor,
+                        shape: const StadiumBorder(), elevation: 2,
+                        padding: const EdgeInsets.symmetric(horizontal: 24), // Внутренний отступ
+                      ),
+                      child: FittedBox( // Сжимает содержимое, если оно не влезает
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.restore, size: 20), const Gap(8),
+                            Text(settings.t('continue_chat'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 const Gap(16),
               ],
 
-              SizedBox(
-                width: 220, height: 56,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModeSelectionPage())),
-                  style: ElevatedButton.styleFrom(shape: const StadiumBorder(), elevation: 5),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(settings.t('start_interview'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const Gap(8), const Icon(Icons.arrow_forward, size: 20),
-                    ],
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
+                child: SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModeSelectionPage())),
+                    style: ElevatedButton.styleFrom(
+                      shape: const StadiumBorder(), 
+                      elevation: 5,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(settings.t('start_interview'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const Gap(8), const Icon(Icons.arrow_forward, size: 20),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
               
               const Spacer(flex: 3), 
-              // ❌ Нижнюю заглушку с фейковыми "2 бесплатными сессиями" я удалил ❌
             ],
           ),
         ),

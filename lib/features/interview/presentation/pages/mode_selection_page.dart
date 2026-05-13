@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:provider/provider.dart';
 import 'package:sobes/core/providers/settings_provider.dart';
-import 'package:sobes/core/widgets/balance_badge.dart'; // 👈 Добавили плашку монет
+import 'package:sobes/core/widgets/balance_badge.dart'; 
 import 'setup_page.dart'; 
 import 'setup_quiz_page.dart'; 
 
@@ -18,11 +18,24 @@ class ModeSelectionPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent, elevation: 0,
+        backgroundColor: Colors.transparent, 
+        elevation: 0,
+        centerTitle: false, 
+        titleSpacing: 0,  
         leading: IconButton(icon: Icon(Icons.arrow_back, color: textColor), onPressed: () => Navigator.pop(context)),
-        title: Text(settings.t('mode_title'), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-        centerTitle: true, 
-        actions: const [BalanceBadge()], // 👈 Теперь монеты видно и здесь!
+        // Добавлено maxLines: 2, чтобы текст переносился, а не резался
+        title: Text(
+          settings.t('mode_title'), 
+          style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 20, height: 1.1),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 8.0),
+            child: BalanceBadge(),
+          ),
+        ],
       ),
       body: Center( 
         child: ConstrainedBox(
@@ -30,7 +43,8 @@ class ModeSelectionPage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, 
+              mainAxisAlignment: MainAxisAlignment.center, 
+              crossAxisAlignment: CrossAxisAlignment.stretch, 
               children: [
                 _AnimatedModeCard(
                   title: settings.t('mode_roleplay'), 
@@ -60,7 +74,6 @@ class ModeSelectionPage extends StatelessWidget {
   }
 }
 
-// 👇 НОВЫЙ УМНЫЙ ВИДЖЕТ С АНИМАЦИЯМИ 👇
 class _AnimatedModeCard extends StatefulWidget {
   final String title;
   final String description;
@@ -89,7 +102,8 @@ class _AnimatedModeCardState extends State<_AnimatedModeCard> {
 
   @override
   Widget build(BuildContext context) {
-    // AnimatedScale отвечает за эффект "вдавливания"
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AnimatedScale(
       scale: _isPressed ? 0.96 : 1.0,
       duration: const Duration(milliseconds: 150),
@@ -100,8 +114,8 @@ class _AnimatedModeCardState extends State<_AnimatedModeCard> {
           color: widget.cardColor, 
           borderRadius: BorderRadius.circular(24), 
           border: Border.all(
-            color: _isPressed ? widget.color : widget.color.withOpacity(0.3), 
-            width: _isPressed ? 3 : 2, // Рамка становится толще при нажатии
+            color: _isPressed ? widget.color : (isDark ? Colors.white10 : Colors.black.withOpacity(0.08)), 
+            width: _isPressed ? 2.5 : 1.2, 
           ),
           boxShadow: [
             BoxShadow(
@@ -116,8 +130,7 @@ class _AnimatedModeCardState extends State<_AnimatedModeCard> {
           child: InkWell(
             borderRadius: BorderRadius.circular(24),
             highlightColor: widget.color.withOpacity(0.05),
-            splashColor: widget.color.withOpacity(0.1), // Цвет волны
-            // Ловим события нажатия для запуска анимации
+            splashColor: widget.color.withOpacity(0.1), 
             onTapDown: (_) => setState(() => _isPressed = true),
             onTapUp: (_) => setState(() => _isPressed = false),
             onTapCancel: () => setState(() => _isPressed = false),

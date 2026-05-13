@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/interview_provider.dart';
+import 'package:sobes/core/providers/settings_provider.dart'; // 👈 Подтянули настройки для перевода
 
 class ChatBubble extends StatelessWidget {
   final String text;
@@ -40,9 +41,11 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InterviewProvider>();
+    final settings = context.watch<SettingsProvider>();
     final isPlaying = provider.currentlyPlayingText == text;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // 👇 УМНАЯ ШИРИНА ДЛЯ ВЕБА И МОБИЛОК 👇
+    // Умная ширина для веба и мобилок
     double screenWidth = MediaQuery.of(context).size.width;
     double maxBubbleWidth = screenWidth > 800 ? 800 * 0.8 : screenWidth * 0.85;
 
@@ -51,10 +54,13 @@ class ChatBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        constraints: BoxConstraints(maxWidth: maxBubbleWidth), // 👈 ПРИМЕНЯЕМ ЗДЕСЬ
+        constraints: BoxConstraints(maxWidth: maxBubbleWidth),
         decoration: BoxDecoration(
-          color: isUser ? Colors.white : const Color(0xFF2A2A2C),
-// ... (дальше твой код без изменений)
+          color: isUser ? (isDark ? Colors.blueAccent.withOpacity(0.8) : Colors.blue.shade50) : (isDark ? const Color(0xFF2A2A2C) : Colors.white),
+          boxShadow: isDark ? [] : [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+          ],
+          border: isDark ? null : Border.all(color: Colors.grey.withOpacity(0.1)),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(20),
             topRight: const Radius.circular(20),
@@ -68,7 +74,7 @@ class ChatBubble extends StatelessWidget {
           children: [
             SelectableText.rich(
               TextSpan(children: _parseMarkdown(text, TextStyle(
-                color: isUser ? Colors.black : Colors.white, 
+                color: isUser ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.white : Colors.black87), 
                 fontSize: 15,
                 height: 1.4,
               ))),
@@ -81,35 +87,37 @@ class ChatBubble extends StatelessWidget {
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   onTap: () {
-                    provider.speak(text); // Работает и как Play, и как Stop
+                    provider.speak(text); 
                   },
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: isPlaying ? Colors.redAccent.withOpacity(0.15) : Colors.blueAccent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isPlaying ? Colors.redAccent.withOpacity(0.5) : Colors.transparent,
+                        color: isPlaying ? Colors.redAccent.withOpacity(0.4) : Colors.blueAccent.withOpacity(0.2),
                       )
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
+                          duration: const Duration(milliseconds: 200),
                           child: Icon(
-                            isPlaying ? Icons.stop_circle_rounded : Icons.play_circle_fill,
-                            key: ValueKey(isPlaying), // Нужно для анимации смены иконки
+                            isPlaying ? Icons.stop_circle_rounded : Icons.volume_up_rounded,
+                            key: ValueKey(isPlaying),
                             color: isPlaying ? Colors.redAccent : Colors.blueAccent,
                             size: 18,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
-                          isPlaying ? "Остановить" : "Озвучить",
+                          isPlaying 
+                            ? (settings.t('stop_voice') != 'stop_voice' ? settings.t('stop_voice') : 'Остановить') 
+                            : (settings.t('play_voice') != 'play_voice' ? settings.t('play_voice') : 'Озвучить'),
                           style: TextStyle(
                             color: isPlaying ? Colors.redAccent : Colors.blueAccent,
                             fontSize: 13,
@@ -122,7 +130,6 @@ class ChatBubble extends StatelessWidget {
                 ),
               ),
             ]
-            // 👆 КОНЕЦ ВСТАВКИ 👆
           ],
         ),
       ),
