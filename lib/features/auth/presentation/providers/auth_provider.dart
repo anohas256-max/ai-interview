@@ -25,8 +25,22 @@ class AuthProvider extends ChangeNotifier {
   int _secondsUntilReward = 0;
   Timer? _rewardTimer;
 
+  bool _dailyRewardAvailable = false;
+  String _dailyRewardReason = 'unknown';
+
+  bool get dailyRewardAvailable => _dailyRewardAvailable;
+  String get dailyRewardReason => _dailyRewardReason;
+
+  bool get isDailyRewardBlockedByBalance =>
+      _dailyRewardReason == 'balance_too_high';
+
+  bool get isDailyRewardOnCooldown =>
+      _dailyRewardReason == 'cooldown';
+
+  bool get isRewardReady => _dailyRewardAvailable;
+
   int get secondsUntilReward => _secondsUntilReward;
-  bool get isRewardReady => _secondsUntilReward <= 0;
+
 
   String get formattedRewardTime {
     if (_secondsUntilReward <= 0) return "Готово!";
@@ -37,23 +51,46 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> fetchDailyRewardInfo() async {
-    final result = await _djangoApiSource.checkDailyReward();
-    
-    if (result.containsKey('balance')) {
-      coinsBalance = (result['balance'] as num).toDouble();
-    }
+  final result = await _djangoApiSource.getDailyRewardStatus();
 
-    if (result.containsKey('seconds_left')) {
-      _secondsUntilReward = result['seconds_left'] as int;
-      _startTimer();
-    }
-    notifyListeners();
+  if (result.containsKey('balance')) {
+    coinsBalance = (result['balance'] as num).toDouble();
   }
 
-  Future<void> claimDailyReward() async {
-    if (!isRewardReady) return; 
-    await fetchDailyRewardInfo(); 
+  _dailyRewardAvailable = result['available'] == true;
+  _dailyRewardReason = result['reason']?.toString() ?? 'unknown';
+
+  if (result.containsKey('seconds_left')) {
+    _secondsUntilReward = result['seconds_left'] as int;
+    _startTimer();
   }
+
+  notifyListeners();
+}
+
+Future<void> claimDailyReward() async {
+  if (!dailyRewardAvailable) return;
+
+  final result = await _djangoApiSource.claimDailyReward();
+
+  if (result.containsKey('balance')) {
+    coinsBalance = (result['balance'] as num).toDouble();
+  }
+
+  if (result['success'] == true) {
+    _dailyRewardAvailable = false;
+    _dailyRewardReason = 'cooldown';
+  }
+
+  if (result.containsKey('seconds_left')) {
+    _secondsUntilReward = result['seconds_left'] as int;
+    _startTimer();
+  }
+
+  notifyListeners();
+
+  await fetchDailyRewardInfo();
+}
 
   Future<void> buyEnergy(double amount) async {
     final result = await _djangoApiSource.addEnergy(amount);

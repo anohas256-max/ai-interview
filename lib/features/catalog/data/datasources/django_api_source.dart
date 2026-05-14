@@ -158,17 +158,41 @@ class DjangoApiSource {
 // 👇 НОВЫЕ МЕТОДЫ ДЛЯ ЭНЕРГИИ 👇
   
   // Проверяет/получает ежедневную награду
-  Future<Map<String, dynamic>> checkDailyReward() async {
+  // 👇 МЕТОДЫ ДЛЯ ЭНЕРГИИ 👇
+
+  // Только проверяет статус ежедневного бонуса. Ничего не начисляет.
+  Future<Map<String, dynamic>> getDailyRewardStatus() async {
+    try {
+      final response = await _dio.get('/daily-reward/status/');
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      print("Ошибка проверки ежедневной награды: $e");
+      return {
+        "available": false,
+        "reason": "network_error",
+        "seconds_left": 0,
+        "balance": 0,
+        "message": "Ошибка сети",
+      };
+    }
+  }
+
+  // Реально забирает ежедневный бонус.
+  Future<Map<String, dynamic>> claimDailyReward() async {
     try {
       final response = await _dio.post('/daily-reward/');
       return response.data as Map<String, dynamic>;
     } catch (e) {
-      print("Ошибка ежедневной награды: $e");
-      return {"success": false, "message": "Ошибка сети"};
+      print("Ошибка получения ежедневной награды: $e");
+      return {
+        "success": false,
+        "message": "Ошибка сети",
+      };
     }
   }
 
-  // Покупка/Добавление энергии (для кнопки +)
+  // Покупка/Добавление энергии.
+  // Сейчас backend add-energy отключен. Позже заменить на платежи/рекламу.
   Future<Map<String, dynamic>> addEnergy(double amount) async {
     try {
       final response = await _dio.post('/add-energy/', data: {"amount": amount});
