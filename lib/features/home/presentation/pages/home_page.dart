@@ -115,10 +115,19 @@ class _HomePageState extends State<HomePage> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).cardColor, foregroundColor: textColor,
-                        shape: const StadiumBorder(), elevation: 2,
-                        padding: const EdgeInsets.symmetric(horizontal: 24), // Внутренний отступ
-                      ),
+  backgroundColor: const Color(0xFFFFFFFF),
+  foregroundColor: const Color(0xFF25242A),
+  surfaceTintColor: Colors.transparent,
+  elevation: 10,
+  shadowColor: Colors.black.withOpacity(0.18),
+  shape: StadiumBorder(
+    side: BorderSide(
+      color: Colors.black.withOpacity(0.08),
+      width: 1,
+    ),
+  ),
+  padding: const EdgeInsets.symmetric(horizontal: 24),
+),
                       child: FittedBox( // Сжимает содержимое, если оно не влезает
                         fit: BoxFit.scaleDown,
                         child: Row(
@@ -143,10 +152,14 @@ class _HomePageState extends State<HomePage> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModeSelectionPage())),
                     style: ElevatedButton.styleFrom(
-                      shape: const StadiumBorder(), 
-                      elevation: 5,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                    ),
+  backgroundColor: const Color(0xFF25242A),
+  foregroundColor: Colors.white,
+  surfaceTintColor: Colors.transparent,
+  shadowColor: Colors.black.withOpacity(0.20),
+  elevation: 10,
+  shape: const StadiumBorder(),
+  padding: const EdgeInsets.symmetric(horizontal: 24),
+),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Row(

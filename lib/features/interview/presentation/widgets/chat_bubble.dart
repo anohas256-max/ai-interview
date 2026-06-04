@@ -56,7 +56,11 @@ class ChatBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         constraints: BoxConstraints(maxWidth: maxBubbleWidth),
         decoration: BoxDecoration(
-          color: isUser ? (isDark ? Colors.blueAccent.withOpacity(0.8) : Colors.blue.shade50) : (isDark ? const Color(0xFF2A2A2C) : Colors.white),
+          color: isUser
+    ? (isDark ? Colors.blueAccent.withOpacity(0.8) : Colors.blue.shade50)
+    : (isDark ? const Color(0xFF2A2A2C) : Colors.white),
+          
+          
           boxShadow: isDark ? [] : [
             BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
           ],

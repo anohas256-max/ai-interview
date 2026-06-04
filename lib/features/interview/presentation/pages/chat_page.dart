@@ -160,89 +160,102 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildBottomInputBar({
-    required BuildContext context,
-    required InterviewProvider provider,
-    required SettingsProvider settings,
-    required bool isLoading,
-    required Color? textColor,
-    required Color cardColor,
-  }) {
-    if (provider.isFailed || provider.isFinished) {
-      return SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AnalysisPage(),
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: provider.isFailed
-                ? const Color(0xFFB71C1C)
-                : const Color(0xFF2E7D32),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+  required BuildContext context,
+  required InterviewProvider provider,
+  required SettingsProvider settings,
+  required bool isLoading,
+  required Color? textColor,
+  required Color cardColor,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  if (provider.isFailed || provider.isFinished) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AnalysisPage(),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                provider.isFailed
-                    ? Icons.warning_amber_rounded
-                    : Icons.check_circle_outline,
-                color: Colors.white,
-              ),
-              const Gap(12),
-              Expanded(
-                child: Text(
-                  provider.isFailed
-                      ? settings.t('interview_aborted')
-                      : settings.t('session_finished'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          );
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: provider.isFailed
+              ? const Color(0xFFB71C1C)
+              : const Color(0xFF2E7D32),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
-      );
-    }
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              provider.isFailed
+                  ? Icons.warning_amber_rounded
+                  : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const Gap(12),
+            Expanded(
+              child: Text(
+                provider.isFailed
+                    ? settings.t('interview_aborted')
+                    : settings.t('session_finished'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    return Row(
+return ConstrainedBox(
+  constraints: const BoxConstraints(
+    minHeight: 56,
+  ),
+  child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: 44,
-          height: 52,
+          height: 56,
           child: Center(
-            child: AudioRecorderBtn(
-              textController: _controller,
-              isDisabled: isLoading,
+            child: IconTheme(
+              data: IconThemeData(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              child: AudioRecorderBtn(
+                textController: _controller,
+                isDisabled: isLoading,
+              ),
             ),
           ),
         ),
+
         const Gap(8),
+
         Expanded(
           child: Container(
             constraints: const BoxConstraints(
-              minHeight: 52,
-              maxHeight: 120,
+              minHeight: 56,
+              maxHeight: 124,
             ),
             decoration: BoxDecoration(
               color: cardColor,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: Colors.grey.withOpacity(0.2),
+                color: Colors.grey.withOpacity(0.22),
               ),
             ),
             child: Row(
@@ -271,25 +284,25 @@ class _ChatPageState extends State<ChatPage> {
                           : isLoading
                               ? settings.t('ai_typing')
                               : settings.t('your_answer'),
-                      hintStyle: const TextStyle(
-                        color: Colors.grey,
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                        fontSize: 15,
                       ),
                       border: InputBorder.none,
                       counterText: "",
-                      isCollapsed: true,
+                      isDense: true,
                       contentPadding: const EdgeInsets.only(
                         left: 20,
                         right: 8,
-                        top: 16,
-                        bottom: 16,
+                        top: 17,
+                        bottom: 17,
                       ),
                     ),
                   ),
                 ),
+
                 Padding(
-                  padding: const EdgeInsets.only(
-                    right: 6,
-                  ),
+                  padding: const EdgeInsets.only(right: 6),
                   child: SizedBox(
                     width: 44,
                     height: 44,
@@ -301,7 +314,7 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                       style: IconButton.styleFrom(
                         backgroundColor:
-                            isLoading ? Colors.transparent : Colors.blueAccent,
+                            isLoading ? Colors.grey.withOpacity(0.25) : Colors.blueAccent,
                         padding: EdgeInsets.zero,
                       ),
                       onPressed: isLoading ? null : _sendMessage,
@@ -313,8 +326,9 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'AI Interview',
       themeMode: themeMode, // 👈 Теперь тема динамическая
-      theme: ThemeData.light(), // Если нет светлой темы, Flutter подставит стандартную
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       
       home: Consumer<AuthProvider>(

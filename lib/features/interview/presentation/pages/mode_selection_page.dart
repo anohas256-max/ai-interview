@@ -104,6 +104,14 @@ class _AnimatedModeCardState extends State<_AnimatedModeCard> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final baseCardColor = isDark ? widget.cardColor : Colors.white;
+
+    final borderColor = _isPressed
+        ? widget.color
+        : isDark
+            ? Colors.white10
+            : Colors.black.withOpacity(0.08);
+
     return AnimatedScale(
       scale: _isPressed ? 0.96 : 1.0,
       duration: const Duration(milliseconds: 150),
@@ -111,26 +119,33 @@ class _AnimatedModeCardState extends State<_AnimatedModeCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: widget.cardColor, 
-          borderRadius: BorderRadius.circular(24), 
+          color: baseCardColor,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: _isPressed ? widget.color : (isDark ? Colors.white10 : Colors.black.withOpacity(0.08)), 
-            width: _isPressed ? 2.5 : 1.2, 
+            color: borderColor,
+            width: _isPressed ? 2.5 : 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: widget.color.withOpacity(_isPressed ? 0.3 : 0.05),
-              blurRadius: _isPressed ? 20 : 10,
+              color: isDark
+                  ? Colors.black.withOpacity(0.18)
+                  : Colors.black.withOpacity(0.035),
+              blurRadius: _isPressed ? 18 : 12,
               offset: const Offset(0, 8),
-            )
-          ]
+            ),
+          ],
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(24),
-            highlightColor: widget.color.withOpacity(0.05),
-            splashColor: widget.color.withOpacity(0.1), 
+
+            // Чтобы web hover не красил карточку в серый
+            hoverColor: Colors.transparent,
+            focusColor: Colors.transparent,
+            highlightColor: widget.color.withOpacity(0.04),
+            splashColor: widget.color.withOpacity(0.08),
+
             onTapDown: (_) => setState(() => _isPressed = true),
             onTapUp: (_) => setState(() => _isPressed = false),
             onTapCancel: () => setState(() => _isPressed = false),
@@ -142,17 +157,39 @@ class _AnimatedModeCardState extends State<_AnimatedModeCard> {
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(12), 
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: widget.color.withOpacity(_isPressed ? 0.2 : 0.1), 
-                      shape: BoxShape.circle
-                    ), 
-                    child: Icon(widget.icon, color: widget.color, size: 32)
+                      color: widget.color.withOpacity(_isPressed ? 0.18 : 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      widget.icon,
+                      color: widget.color,
+                      size: 32,
+                    ),
                   ),
+
                   const Gap(16),
-                  Text(widget.title, style: TextStyle(color: widget.textColor, fontSize: 22, fontWeight: FontWeight.bold)),
+
+                  Text(
+                    widget.title,
+                    style: TextStyle(
+                      color: widget.textColor,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
                   const Gap(8),
-                  Text(widget.description, style: const TextStyle(color: Colors.grey, fontSize: 14, height: 1.4)),
+
+                  Text(
+                    widget.description,
+                    style: TextStyle(
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
               ),
             ),
