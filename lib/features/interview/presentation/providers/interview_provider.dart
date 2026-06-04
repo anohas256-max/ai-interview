@@ -249,9 +249,13 @@ class InterviewProvider extends ChangeNotifier {
           {"topic": "Тема", "explanation": "Объяснение", "recommendation": "Что читать"}
         ],
         "evaluations": [
-          {"id": 1, "is_water": false, "feedback": "Текст."}
+          {"id": 1, "is_water": false, "feedback_type": "positive", "feedback": "Текст."}
         ]
       }
+      Для каждого элемента evaluations обязательно укажи feedback_type:
+      - "positive" — хороший или приемлемый ответ
+      - "neutral" — частичный, слабый, неполный, но не нарушающий правила ответ
+      - "negative" — грубый, бессмысленный, токсичный, нецензурный, отказ отвечать или явно плохой ответ
       ВАЖНО: Массив 'evaluations' должен содержать ровно $userMsgCount элементов.
       ТРАНСКРИПЦИЯ: 
       $fullChat""";
@@ -283,9 +287,10 @@ class InterviewProvider extends ChangeNotifier {
               if (evalIndex < evalList.length) {
                 final eval = evalList[evalIndex];
                 _messages[i] = _messages[i].copyWith(
-                  isWater: eval['is_water'] ?? false,
-                  feedback: eval['feedback'] ?? "Нет комментария.",
-                );
+                isWater: eval['is_water'] ?? false,
+                feedback: eval['feedback'] ?? "Нет комментария.",
+                feedbackType: eval['feedback_type'] ?? "neutral",
+              );
                 evalIndex++;
               }
             }
