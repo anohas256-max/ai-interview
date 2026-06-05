@@ -22,6 +22,53 @@ class DjangoApiSource {
     }
   }
 
+  Future<bool> deleteCustomPreset(int id) async {
+    try {
+      final response = await _dio.delete('/custom-presets/$id/');
+
+      return response.statusCode == 204 ||
+          response.statusCode == 200 ||
+          response.statusCode == 202;
+    } catch (e) {
+      print("Ошибка удаления кастомного пресета: $e");
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCustomPresets(String mode) async {
+  try {
+    final response = await _dio.get('/custom-presets/?mode=$mode');
+    final List results = (response.data['results'] ?? response.data) as List;
+
+    return results
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  } catch (e) {
+    print("Ошибка загрузки кастомных пресетов: $e");
+    return [];
+  }
+}
+
+Future<Map<String, dynamic>?> createCustomPreset({
+  required String mode,
+  required String title,
+}) async {
+  try {
+    final response = await _dio.post(
+      '/custom-presets/',
+      data: {
+        "mode": mode,
+        "title": title,
+      },
+    );
+
+    return Map<String, dynamic>.from(response.data as Map);
+  } catch (e) {
+    print("Ошибка сохранения кастомного пресета: $e");
+    return null;
+  }
+}
+
   DjangoApiSource() {
     _dio = Dio(BaseOptions(baseUrl: baseUrl));
 
